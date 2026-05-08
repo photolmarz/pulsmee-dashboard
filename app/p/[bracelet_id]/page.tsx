@@ -74,7 +74,7 @@ const TRANSLATIONS = {
     espece: 'Espèce',
     poste: 'Poste',
     contact_rh: 'Contact RH',
-    appeler: (n: string) => `🚨 Appeler le ${n}`,
+    appeler: (n: string) => `🚨 Appeler les secours (${n})`,
   },
   en: {
     urgence: '🚨 Medical Emergency',
