@@ -79,3 +79,54 @@ export function formatRelativeTime(dateStr: string): string {
   if (days < 7) return `Il y a ${days}j`
   return date.toLocaleDateString('fr-FR')
 }
+
+// Encode fiche data for NFC URL (offline support)
+export function encodeFicheForNFC(fiche: Fiche): string {
+  const data = {
+    n: fiche.nom_complet || '',
+    d: fiche.date_naissance || '',
+    g: fiche.groupe_sanguin || '',
+    a: fiche.allergies || '',
+    t: fiche.traitements || '',
+    p: fiche.pathologies || '',
+    c1n: fiche.contact1_nom || '',
+    c1t: fiche.contact1_tel || '',
+    c2n: fiche.contact2_nom || '',
+    c2t: fiche.contact2_tel || '',
+    m: fiche.medecin || '',
+    mt: fiche.medecin_tel || '',
+    con: fiche.consignes || '',
+    esp: fiche.espece || '',
+    rac: fiche.race || '',
+    pos: fiche.poste || '',
+    gau: fiche.guide_autisme || '',
+  }
+  return btoa(unescape(encodeURIComponent(JSON.stringify(data))))
+}
+
+export function decodeFicheFromNFC(encoded: string): Partial<Fiche> | null {
+  try {
+    const data = JSON.parse(decodeURIComponent(escape(atob(encoded))))
+    return {
+      nom_complet: data.n,
+      date_naissance: data.d,
+      groupe_sanguin: data.g,
+      allergies: data.a,
+      traitements: data.t,
+      pathologies: data.p,
+      contact1_nom: data.c1n,
+      contact1_tel: data.c1t,
+      contact2_nom: data.c2n,
+      contact2_tel: data.c2t,
+      medecin: data.m,
+      medecin_tel: data.mt,
+      consignes: data.con,
+      espece: data.esp,
+      race: data.rac,
+      poste: data.pos,
+      guide_autisme: data.gau,
+    }
+  } catch {
+    return null
+  }
+}

@@ -4,7 +4,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Logo from '@/components/Logo'
 import Drawer from '@/components/Drawer'
 import { createClient } from '@/lib/supabase'
-import { downloadVCard, calcAge, GAMME_COLORS } from '@/lib/utils'
+import { downloadVCard, calcAge, GAMME_COLORS, encodeFicheForNFC } from '@/lib/utils'
 import type { User } from '@supabase/supabase-js'
 import type { Bracelet, Fiche } from '@/types'
 
@@ -151,7 +151,12 @@ export default function FichePage() {
       }, { onConflict: 'bracelet_id' })
       if (error) throw error
       setDirty(false)
-      showToast('✅ Fiche sauvegardée !')
+      // Marquer la puce comme nécessitant une reprogrammation
+      await supabase.from('bracelets')
+        .update({ puce_programmee: false })
+        .eq('bracelet_id', braceletIdParam)
+      setBracelet(prev => prev ? { ...prev, puce_programmee: false } : prev)
+      showToast('✅ Fiche sauvegardée ! Reprogrammez votre puce NFC.')
     } catch {
       showToast('❌ Erreur lors de la sauvegarde')
     } finally {
@@ -196,7 +201,9 @@ export default function FichePage() {
     try {
       // @ts-expect-error — Web NFC API
       const ndef = new NDEFReader()
-      await ndef.write({ records: [{ recordType: 'url', data: `https://pulsmee.fr/p/${bracelet.bracelet_id}` }] })
+      const encoded = encodeFicheForNFC(fiche)
+      const nfcUrl = `https://pulsmee.fr/p/${bracelet.bracelet_id}?v=${encoded}`
+      await ndef.write({ records: [{ recordType: 'url', data: nfcUrl }] })
       await supabase.from('bracelets').update({ puce_programmee: true, derniere_programmation: new Date().toISOString() }).eq('bracelet_id', bracelet.bracelet_id)
       setBracelet(prev => prev ? { ...prev, puce_programmee: true, derniere_programmation: new Date().toISOString() } : prev)
       setNfcStatus('success')
@@ -466,7 +473,9 @@ export default function FichePage() {
           {/* ── NFC ── */}
           {ficheRemplie && bracelet?.bracelet_id && (
             <div className="nfc-block" style={{ borderColor: `${gammeColor}30` }}>
-              <div className="nfc-title">📡 Programmer mon bracelet hors ligne</div>
+              <div className="nfc-title">
+                📡 {bracelet?.puce_programmee ? 'Bracelet programmé ✅' : '⚠️ Reprogrammation nécessaire'}
+              </div>
               <p className="nfc-desc">Pour que votre bracelet fonctionne <strong>sans réseau</strong>, programmez la puce NFC.</p>
               <div className="nfc-step">
                 <div className="nfc-step-num" style={{ background: gammeColor }}>1</div>

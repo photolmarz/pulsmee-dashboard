@@ -1,38 +1,17 @@
-import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { headers } from 'next/headers'
-import { calcAge, GAMME_COLORS } from '@/lib/utils'
+'use client'
+import { useEffect, useState } from 'react'
+import { useParams, useSearchParams } from 'next/navigation'
+import { createClient } from '@/lib/supabase'
+import { calcAge, GAMME_COLORS, decodeFicheFromNFC } from '@/lib/utils'
 import type { Fiche } from '@/types'
-import type { Metadata } from 'next'
 
-type Props = {
-  params: { bracelet_id: string }
-}
-
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const supabase = await createServerSupabaseClient()
-  const { data } = await supabase
-    .from('fiches')
-    .select('nom_complet, groupe_sanguin')
-    .eq('bracelet_id', params.bracelet_id.toUpperCase())
-    .maybeSingle()
-
-  if (!data?.nom_complet) {
-    return { title: 'Fiche d\'urgence · Pulsmee' }
-  }
-
-  return {
-    title: `🚨 Urgence · ${data.nom_complet} · Pulsmee`,
-    description: `Fiche médicale d'urgence de ${data.nom_complet} — Groupe sanguin : ${data.groupe_sanguin}`,
-  }
-}
+type Habilitation = { nom: string; statut: 'valid' | 'soon' | 'expired' }
 
 function formatTime() {
   return new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
 }
 
-type Habilitation = { nom: string; statut: 'valid' | 'soon' | 'expired' }
-
-function getAlertePills(fiche: Fiche): string[] {
+function getAlertePills(fiche: Partial<Fiche>): string[] {
   const pills: string[] = []
   if (fiche.allergies) {
     fiche.allergies.split(',').forEach(a => {
@@ -55,14 +34,75 @@ function getAlertePills(fiche: Fiche): string[] {
   return pills
 }
 
-export default async function PublicPage({ params }: Props) {
-  const supabase = await createServerSupabaseClient()
-  const braceletId = params.bracelet_id.toUpperCase()
+export default function PublicPage() {
+  const params = useParams()
+  const searchParams = useSearchParams()
+  const braceletId = (params?.bracelet_id as string)?.toUpperCase()
+  const encodedData = searchParams?.get('v')
 
-  const [{ data: fiche }, { data: bracelet }] = await Promise.all([
-    supabase.from('fiches').select('*').eq('bracelet_id', braceletId).maybeSingle(),
-    supabase.from('bracelets').select('nom_profil, gamme').eq('bracelet_id', braceletId).maybeSingle(),
-  ])
+  const [fiche, setFiche] = useState<Partial<Fiche> | null>(null)
+  const [gamme, setGamme] = useState('Care')
+  const [nomProfil, setNomProfil] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [isOffline, setIsOffline] = useState(false)
+  const [time, setTime] = useState(formatTime())
+
+  useEffect(() => {
+    const t = setInterval(() => setTime(formatTime()), 30000)
+    return () => clearInterval(t)
+  }, [])
+
+  useEffect(() => {
+    async function load() {
+      // Try online first
+      if (navigator.onLine) {
+        try {
+          const supabase = createClient()
+          const [{ data: ficheData }, { data: braceletData }] = await Promise.all([
+            supabase.from('fiches').select('*').eq('bracelet_id', braceletId).maybeSingle(),
+            supabase.from('bracelets').select('nom_profil, gamme').eq('bracelet_id', braceletId).maybeSingle(),
+          ])
+
+          // Log scan
+          void supabase.from('scans').insert({
+            bracelet_id: braceletId,
+            user_agent: navigator.userAgent.slice(0, 200),
+          })
+
+          if (ficheData) {
+            setFiche(ficheData)
+            setGamme(braceletData?.gamme || 'Care')
+            setNomProfil(braceletData?.nom_profil || '')
+            setLoading(false)
+            return
+          }
+        } catch {}
+      }
+
+      // Fallback: offline data from URL
+      if (encodedData) {
+        const decoded = decodeFicheFromNFC(encodedData)
+        if (decoded) {
+          setFiche(decoded)
+          setIsOffline(true)
+          setLoading(false)
+          return
+        }
+      }
+
+      setFiche(null)
+      setLoading(false)
+    }
+    load()
+  }, [braceletId, encodedData])
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#1E1A16', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 32, height: 32, border: '3px solid rgba(255,255,255,.2)', borderTopColor: '#E8472A', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+      </div>
+    )
+  }
 
   if (!fiche) {
     return (
@@ -80,21 +120,13 @@ export default async function PublicPage({ params }: Props) {
     )
   }
 
-  const headersList = headers()
-  const userAgent = headersList.get('user-agent') || ''
-  void supabase.from('scans').insert({
-    bracelet_id: braceletId,
-    user_agent: userAgent.slice(0, 200),
-  })
-
-  const gamme = bracelet?.gamme ?? 'Care'
   const gammeColor = GAMME_COLORS[gamme] ?? '#E8472A'
   const isPet = gamme === 'Pet'
   const isKids = gamme === 'Kids'
   const isWork = gamme === 'Work'
 
-  const age = calcAge((fiche as Fiche & { date_naissance?: string }).date_naissance)
-  const alertes = getAlertePills(fiche as Fiche)
+  const age = calcAge(fiche.date_naissance)
+  const alertes = getAlertePills(fiche)
 
   const contacts = [
     { nom: fiche.contact1_nom, tel: fiche.contact1_tel, role: isKids ? 'Parent prioritaire' : isPet ? 'Propriétaire' : 'Contact prioritaire', ava: '👩' },
@@ -109,10 +141,13 @@ export default async function PublicPage({ params }: Props) {
     try { habilitations = JSON.parse((fiche as Fiche & { habilitations?: string }).habilitations || '[]') } catch {}
   }
 
-  const ficheExt = fiche as Fiche & { espece?: string; race?: string; poste?: string; guide_autisme?: string }
-
   return (
     <div className="pub-wrap">
+      {isOffline && (
+        <div style={{ background: '#92400e', color: '#fef3c7', textAlign: 'center', padding: '8px 16px', fontSize: 12, fontWeight: 600 }}>
+          📡 Mode hors ligne — données depuis la puce NFC
+        </div>
+      )}
       <div className="pub-phone">
         <div className="pub-back-bar">
           <a href="/dashboard" className="pub-back-btn">
@@ -121,8 +156,8 @@ export default async function PublicPage({ params }: Props) {
           </a>
         </div>
         <div className="pub-statusbar">
-          <span>{formatTime()}</span>
-          <span>📶 🔋</span>
+          <span>{time}</span>
+          <span>{isOffline ? '📵' : '📶'} 🔋</span>
         </div>
 
         <div className="pub-hero" style={{ background: `linear-gradient(135deg, ${gammeColor}22 0%, transparent 60%)` }}>
@@ -133,10 +168,10 @@ export default async function PublicPage({ params }: Props) {
           {fiche.photo_url && !isPet && (
             <img src={fiche.photo_url} alt={fiche.nom_complet} className="pub-photo" style={{ borderColor: gammeColor }} />
           )}
-          <div className="pub-name">{fiche.nom_complet || bracelet?.nom_profil || 'Porteur du bracelet'}</div>
+          <div className="pub-name">{fiche.nom_complet || nomProfil || 'Porteur du bracelet'}</div>
           <div className="pub-meta">
-            {isPet && ficheExt.espece && <span>{ficheExt.espece}{ficheExt.race ? ` · ${ficheExt.race}` : ''}</span>}
-            {isWork && ficheExt.poste && <span style={{ fontSize: 12 }}>{ficheExt.poste}</span>}
+            {isPet && fiche.espece && <span>{fiche.espece}{fiche.race ? ` · ${fiche.race}` : ''}</span>}
+            {isWork && fiche.poste && <span style={{ fontSize: 12 }}>{fiche.poste}</span>}
             {age !== null && <span>{age} ans</span>}
             {age !== null && fiche.groupe_sanguin ? ' · ' : null}
             {fiche.groupe_sanguin && !isPet && (
@@ -145,7 +180,7 @@ export default async function PublicPage({ params }: Props) {
           </div>
           {mainContact && (
             <a href={`tel:${mainContact.tel}`} className="pub-cta" style={{ background: gammeColor }}>
-              📞 Appeler {mainContact.nom.split(' ')[0]}
+              📞 Appeler {mainContact.nom!.split(' ')[0]}
             </a>
           )}
         </div>
@@ -193,44 +228,36 @@ export default async function PublicPage({ params }: Props) {
               <div className="pub-row">
                 <span className="pub-rl">Téléphone</span>
                 <span className="pub-rv">
-                  <a href={`tel:${fiche.medecin_tel}`} style={{ color: gammeColor, fontWeight: 700 }}>
-                    {fiche.medecin_tel}
-                  </a>
+                  <a href={`tel:${fiche.medecin_tel}`} style={{ color: gammeColor, fontWeight: 700 }}>{fiche.medecin_tel}</a>
                 </span>
               </div>
             )}
           </div>
 
-          {/* Habilitations Work */}
           {isWork && habilitations.length > 0 && (
             <div className="pub-card">
-              <div className="pub-row" style={{ borderBottom: `1px solid var(--stone)`, paddingBottom: 8, marginBottom: 8 }}>
+              <div className="pub-row" style={{ borderBottom: '1px solid var(--stone)', paddingBottom: 8, marginBottom: 8 }}>
                 <span className="pub-rl" style={{ fontWeight: 700, color: 'var(--ink)' }}>Habilitations</span>
               </div>
               {habilitations.map((h, i) => (
                 <div key={i} className="pub-row">
                   <span className="pub-rl">{h.nom}</span>
-                  <span className="pub-rv">
-                    {h.statut === 'valid' ? '🟢 Valide' : h.statut === 'soon' ? '🟠 Expire bientôt' : '🔴 Expiré'}
-                  </span>
+                  <span className="pub-rv">{h.statut === 'valid' ? '🟢 Valide' : h.statut === 'soon' ? '🟠 Expire bientôt' : '🔴 Expiré'}</span>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Guide autisme Kids */}
-          {isKids && ficheExt.guide_autisme && (
+          {isKids && fiche.guide_autisme && (
             <div className="pub-consignes" style={{ background: `${gammeColor}10`, borderColor: `${gammeColor}30`, color: 'var(--ink)' }}>
               <div style={{ fontWeight: 700, marginBottom: 6, color: gammeColor }}>💙 Guide d'approche</div>
-              {ficheExt.guide_autisme}
+              {fiche.guide_autisme}
             </div>
           )}
 
           {contacts.map((c, i) => (
             <div key={i} className="pub-contact">
-              <div className="pub-ava" style={{ background: i === 0 ? `${gammeColor}22` : '#EDE9FE' }}>
-                {c.ava}
-              </div>
+              <div className="pub-ava" style={{ background: i === 0 ? `${gammeColor}22` : '#EDE9FE' }}>{c.ava}</div>
               <div style={{ flex: 1 }}>
                 <div className="pub-cname">{c.nom}</div>
                 <div className="pub-crole">{c.role}</div>
@@ -240,15 +267,13 @@ export default async function PublicPage({ params }: Props) {
           ))}
 
           {fiche.consignes && (
-            <div className="pub-consignes">
-              {fiche.consignes}
-            </div>
+            <div className="pub-consignes">{fiche.consignes}</div>
           )}
         </div>
 
         <div className="pub-footer">
           <div className="pub-footer-brand" style={{ color: gammeColor }}>✦ Pulsmee {gamme} · Fiche d'urgence</div>
-          <div className="pub-footer-sub">Sans app · Sans réseau · pulsmee.fr/p/{braceletId}</div>
+          <div className="pub-footer-sub">Sans app · {isOffline ? 'Hors ligne' : 'En ligne'} · pulsmee.fr/p/{braceletId}</div>
         </div>
       </div>
     </div>
