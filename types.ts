@@ -26,6 +26,9 @@ export type Fiche = {
   contact2_tel: string
   contact3_nom: string
   contact3_tel: string
+  contact1_relation: string
+  contact2_relation: string
+  contact3_relation: string
   medecin: string
   medecin_tel: string
   consignes: string

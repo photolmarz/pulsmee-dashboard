@@ -1,5 +1,31 @@
 import type { Fiche, Bracelet } from '@/types'
 
+export const RELATION_OPTIONS = [
+  { value: 'conjoint', label: 'Conjoint(e)', emoji: '💑' },
+  { value: 'mere', label: 'Mère', emoji: '👩' },
+  { value: 'pere', label: 'Père', emoji: '👨' },
+  { value: 'soeur', label: 'Sœur', emoji: '👧' },
+  { value: 'frere', label: 'Frère', emoji: '👦' },
+  { value: 'fille', label: 'Fille', emoji: '👧' },
+  { value: 'fils', label: 'Fils', emoji: '👦' },
+  { value: 'grand_mere', label: 'Grand-mère', emoji: '👵' },
+  { value: 'grand_pere', label: 'Grand-père', emoji: '👴' },
+  { value: 'tante', label: 'Tante', emoji: '👩' },
+  { value: 'oncle', label: 'Oncle', emoji: '👨' },
+  { value: 'ami', label: 'Ami(e)', emoji: '🤝' },
+  { value: 'tuteur', label: 'Tuteur légal', emoji: '🛡️' },
+  { value: 'voisin', label: 'Voisin(e)', emoji: '🏠' },
+  { value: 'medecin', label: 'Médecin traitant', emoji: '👨‍⚕️' },
+  { value: 'autre', label: 'Autre', emoji: '👤' },
+]
+
+export function getRelationEmoji(relation: string): string {
+  return RELATION_OPTIONS.find(r => r.value === relation)?.emoji ?? '👤'
+}
+export function getRelationLabel(relation: string): string {
+  return RELATION_OPTIONS.find(r => r.value === relation)?.label ?? relation
+}
+
 const GAMME_PREFIXES: Record<string, string> = {
   'Care': 'PLMC',
   'Kids': 'PLMK',
@@ -91,8 +117,13 @@ export function encodeFicheForNFC(fiche: Fiche): string {
     p: fiche.pathologies || '',
     c1n: fiche.contact1_nom || '',
     c1t: fiche.contact1_tel || '',
+    c1r: fiche.contact1_relation || '',
     c2n: fiche.contact2_nom || '',
     c2t: fiche.contact2_tel || '',
+    c2r: fiche.contact2_relation || '',
+    c3n: fiche.contact3_nom || '',
+    c3t: fiche.contact3_tel || '',
+    c3r: fiche.contact3_relation || '',
     m: fiche.medecin || '',
     mt: fiche.medecin_tel || '',
     con: fiche.consignes || '',
@@ -116,8 +147,13 @@ export function decodeFicheFromNFC(encoded: string): Partial<Fiche> | null {
       pathologies: data.p,
       contact1_nom: data.c1n,
       contact1_tel: data.c1t,
+      contact1_relation: data.c1r || '',
       contact2_nom: data.c2n,
       contact2_tel: data.c2t,
+      contact2_relation: data.c2r || '',
+      contact3_nom: data.c3n || '',
+      contact3_tel: data.c3t || '',
+      contact3_relation: data.c3r || '',
       medecin: data.m,
       medecin_tel: data.mt,
       consignes: data.con,

@@ -1,171 +1,185 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { calcAge, GAMME_COLORS, decodeFicheFromNFC } from '@/lib/utils'
+import { calcAge, GAMME_COLORS, decodeFicheFromNFC, getRelationEmoji, getRelationLabel } from '@/lib/utils'
 import type { Fiche } from '@/types'
 
 type Habilitation = { nom: string; statut: 'valid' | 'soon' | 'expired' }
 
-type LangKey = 'fr' | 'en' | 'es' | 'de' | 'it'
+// Emergency numbers by country
+const EMERGENCY_NUMBERS: Record<string, { number: string; label: string }> = {
+  fr: { number: '15', label: 'Appeler le 15 (SAMU)' },
+  gb: { number: '999', label: 'Call 999' },
+  us: { number: '911', label: 'Call 911' },
+  ca: { number: '911', label: 'Call 911' },
+  de: { number: '112', label: 'Notruf 112' },
+  es: { number: '112', label: 'Llamar al 112' },
+  it: { number: '118', label: 'Chiama il 118' },
+  be: { number: '112', label: 'Appeler le 112' },
+  ch: { number: '144', label: 'Appeler le 144' },
+  pt: { number: '112', label: 'Ligar 112' },
+  nl: { number: '112', label: 'Bel 112' },
+  au: { number: '000', label: 'Call 000' },
+  default: { number: '112', label: 'Appeler le 112' },
+}
 
-const TRANSLATIONS: Record<LangKey, Record<string, string>> = {
+function getEmergencyInfo() {
+  const lang = navigator.language?.toLowerCase() || ''
+  const country = lang.split('-')[1] || lang.split('-')[0] || 'default'
+  return EMERGENCY_NUMBERS[country] ?? EMERGENCY_NUMBERS.default
+}
+
+// Translations
+const TRANSLATIONS = {
   fr: {
-    urgence_medicale: '🚨 Urgence médicale',
-    fiche_animale: '🐾 Fiche animale',
-    alertes_critiques: '⚠️ Alertes critiques',
+    urgence: '🚨 Urgence médicale',
+    animal: '🐾 Animal perdu',
+    enfant: '🧒 Enfant en danger',
+    chantier: '🏗️ Accident chantier',
+    alertes: 'Alertes critiques',
     groupe_sanguin: 'Groupe sanguin',
     traitement: 'Traitement',
-    traitement_vet: 'Traitements vétérinaires',
     pathologies: 'Pathologies',
     medecin: 'Médecin',
-    medecin_vet: 'Vétérinaire',
-    medecin_rh: 'Contact RH',
+    veterinaire: 'Vétérinaire',
     telephone: 'Téléphone',
-    contacts: 'Contact prioritaire',
-    contacts2: 'Contact 2',
-    contacts3: 'Contact 3',
-    contacts_parent1: 'Parent prioritaire',
-    contacts_parent2: 'Parent 2',
-    contacts_proprio: 'Propriétaire',
-    contacts_proprio2: 'Propriétaire 2',
     habilitations: 'Habilitations',
-    guide_approche: '💙 Guide d\'approche',
+    guide: 'Guide d\'approche',
     consignes: 'Consignes',
+    allergies: 'Allergies',
+    prioritaire: 'Prioritaire',
+    prevenir: '🚨 Prévenir les contacts',
+    prevenu: '✅ Contacts prévenus !',
+    hors_ligne: '📡 Mode hors ligne — données depuis la puce NFC',
     sans_app: 'Sans app',
     en_ligne: 'En ligne',
-    hors_ligne: 'Hors ligne',
-    prevenir_contacts: '🚨 Prévenir les contacts d\'urgence',
-    contacts_prevenus: '✅ Contacts prévenus !',
-    mode_hors_ligne: '📡 Mode hors ligne — données depuis la puce NFC',
-    bracelet_introuvable: 'Bracelet introuvable',
-    appeler: 'Appeler',
+    offline: 'Hors ligne',
+    donneur: 'Donneur',
+    race: 'Race',
+    espece: 'Espèce',
+    poste: 'Poste',
+    contact_rh: 'Contact RH',
   },
   en: {
-    urgence_medicale: '🚨 Medical Emergency',
-    fiche_animale: '🐾 Pet Profile',
-    alertes_critiques: '⚠️ Critical Alerts',
+    urgence: '🚨 Medical Emergency',
+    animal: '🐾 Lost Animal',
+    enfant: '🧒 Child in danger',
+    chantier: '🏗️ Work Accident',
+    alertes: 'Critical Alerts',
     groupe_sanguin: 'Blood type',
     traitement: 'Treatment',
-    traitement_vet: 'Veterinary treatments',
     pathologies: 'Conditions',
     medecin: 'Doctor',
-    medecin_vet: 'Veterinarian',
-    medecin_rh: 'HR Contact',
+    veterinaire: 'Veterinarian',
     telephone: 'Phone',
-    contacts: 'Priority contact',
-    contacts2: 'Contact 2',
-    contacts3: 'Contact 3',
-    contacts_parent1: 'Primary parent',
-    contacts_parent2: 'Parent 2',
-    contacts_proprio: 'Owner',
-    contacts_proprio2: 'Owner 2',
     habilitations: 'Certifications',
-    guide_approche: '💙 Approach guide',
+    guide: 'Approach guide',
     consignes: 'Instructions',
-    sans_app: 'No app needed',
+    allergies: 'Allergies',
+    prioritaire: 'Priority',
+    prevenir: '🚨 Alert emergency contacts',
+    prevenu: '✅ Contacts notified!',
+    hors_ligne: '📡 Offline mode — data from NFC chip',
+    sans_app: 'No app',
     en_ligne: 'Online',
-    hors_ligne: 'Offline',
-    prevenir_contacts: '🚨 Alert emergency contacts',
-    contacts_prevenus: '✅ Contacts notified!',
-    mode_hors_ligne: '📡 Offline mode — data from NFC chip',
-    bracelet_introuvable: 'Bracelet not found',
-    appeler: 'Call',
+    offline: 'Offline',
+    donneur: 'Donor',
+    race: 'Breed',
+    espece: 'Species',
+    poste: 'Position',
+    contact_rh: 'HR Contact',
   },
   es: {
-    urgence_medicale: '🚨 Emergencia médica',
-    fiche_animale: '🐾 Ficha animal',
-    alertes_critiques: '⚠️ Alertas críticas',
+    urgence: '🚨 Emergencia médica',
+    animal: '🐾 Animal perdido',
+    enfant: '🧒 Niño en peligro',
+    chantier: '🏗️ Accidente laboral',
+    alertes: 'Alertas críticas',
     groupe_sanguin: 'Grupo sanguíneo',
     traitement: 'Tratamiento',
-    traitement_vet: 'Tratamientos veterinarios',
     pathologies: 'Patologías',
     medecin: 'Médico',
-    medecin_vet: 'Veterinario',
-    medecin_rh: 'Contacto RRHH',
+    veterinaire: 'Veterinario',
     telephone: 'Teléfono',
-    contacts: 'Contacto prioritario',
-    contacts2: 'Contacto 2',
-    contacts3: 'Contacto 3',
-    contacts_parent1: 'Padre/Madre principal',
-    contacts_parent2: 'Padre/Madre 2',
-    contacts_proprio: 'Propietario',
-    contacts_proprio2: 'Propietario 2',
-    habilitations: 'Habilitaciones',
-    guide_approche: '💙 Guía de aproximación',
+    habilitations: 'Certificaciones',
+    guide: 'Guía de acercamiento',
     consignes: 'Instrucciones',
-    sans_app: 'Sin aplicación',
+    allergies: 'Alergias',
+    prioritaire: 'Prioritario',
+    prevenir: '🚨 Avisar a los contactos',
+    prevenu: '✅ ¡Contactos avisados!',
+    hors_ligne: '📡 Modo sin conexión — datos del chip NFC',
+    sans_app: 'Sin app',
     en_ligne: 'En línea',
-    hors_ligne: 'Sin conexión',
-    prevenir_contacts: '🚨 Avisar contactos de emergencia',
-    contacts_prevenus: '✅ ¡Contactos avisados!',
-    mode_hors_ligne: '📡 Modo sin conexión — datos desde el chip NFC',
-    bracelet_introuvable: 'Pulsera no encontrada',
-    appeler: 'Llamar',
+    offline: 'Sin conexión',
+    donneur: 'Donante',
+    race: 'Raza',
+    espece: 'Especie',
+    poste: 'Puesto',
+    contact_rh: 'Contacto RR.HH.',
   },
   de: {
-    urgence_medicale: '🚨 Medizinischer Notfall',
-    fiche_animale: '🐾 Tierakte',
-    alertes_critiques: '⚠️ Kritische Warnungen',
+    urgence: '🚨 Medizinischer Notfall',
+    animal: '🐾 Verlorenes Tier',
+    enfant: '🧒 Kind in Gefahr',
+    chantier: '🏗️ Arbeitsunfall',
+    alertes: 'Kritische Warnungen',
     groupe_sanguin: 'Blutgruppe',
     traitement: 'Behandlung',
-    traitement_vet: 'Tierärztliche Behandlungen',
     pathologies: 'Erkrankungen',
     medecin: 'Arzt',
-    medecin_vet: 'Tierarzt',
-    medecin_rh: 'HR-Kontakt',
+    veterinaire: 'Tierarzt',
     telephone: 'Telefon',
-    contacts: 'Hauptkontakt',
-    contacts2: 'Kontakt 2',
-    contacts3: 'Kontakt 3',
-    contacts_parent1: 'Hauptelternteil',
-    contacts_parent2: 'Elternteil 2',
-    contacts_proprio: 'Eigentümer',
-    contacts_proprio2: 'Eigentümer 2',
-    habilitations: 'Qualifikationen',
-    guide_approche: '💙 Annäherungsleitfaden',
+    habilitations: 'Zertifizierungen',
+    guide: 'Annäherungsführer',
     consignes: 'Anweisungen',
+    allergies: 'Allergien',
+    prioritaire: 'Priorität',
+    prevenir: '🚨 Notfallkontakte benachrichtigen',
+    prevenu: '✅ Kontakte benachrichtigt!',
+    hors_ligne: '📡 Offline-Modus — Daten vom NFC-Chip',
     sans_app: 'Ohne App',
     en_ligne: 'Online',
-    hors_ligne: 'Offline',
-    prevenir_contacts: '🚨 Notfallkontakte benachrichtigen',
-    contacts_prevenus: '✅ Kontakte benachrichtigt!',
-    mode_hors_ligne: '📡 Offline-Modus — Daten vom NFC-Chip',
-    bracelet_introuvable: 'Armband nicht gefunden',
-    appeler: 'Anrufen',
+    offline: 'Offline',
+    donneur: 'Spender',
+    race: 'Rasse',
+    espece: 'Tierart',
+    poste: 'Position',
+    contact_rh: 'HR-Kontakt',
   },
   it: {
-    urgence_medicale: '🚨 Emergenza medica',
-    fiche_animale: '🐾 Scheda animale',
-    alertes_critiques: '⚠️ Avvisi critici',
+    urgence: '🚨 Emergenza medica',
+    animal: '🐾 Animale perso',
+    enfant: '🧒 Bambino in pericolo',
+    chantier: '🏗️ Incidente sul lavoro',
+    alertes: 'Allerta critica',
     groupe_sanguin: 'Gruppo sanguigno',
     traitement: 'Trattamento',
-    traitement_vet: 'Trattamenti veterinari',
     pathologies: 'Patologie',
     medecin: 'Medico',
-    medecin_vet: 'Veterinario',
-    medecin_rh: 'Contatto HR',
+    veterinaire: 'Veterinario',
     telephone: 'Telefono',
-    contacts: 'Contatto prioritario',
-    contacts2: 'Contatto 2',
-    contacts3: 'Contatto 3',
-    contacts_parent1: 'Genitore principale',
-    contacts_parent2: 'Genitore 2',
-    contacts_proprio: 'Proprietario',
-    contacts_proprio2: 'Proprietario 2',
-    habilitations: 'Abilitazioni',
-    guide_approche: '💙 Guida all\'approccio',
+    habilitations: 'Certificazioni',
+    guide: 'Guida approccio',
     consignes: 'Istruzioni',
+    allergies: 'Allergie',
+    prioritaire: 'Prioritario',
+    prevenir: '🚨 Avvisare i contatti',
+    prevenu: '✅ Contatti avvisati!',
+    hors_ligne: '📡 Modalità offline — dati dal chip NFC',
     sans_app: 'Senza app',
     en_ligne: 'Online',
-    hors_ligne: 'Offline',
-    prevenir_contacts: '🚨 Avvisare i contatti di emergenza',
-    contacts_prevenus: '✅ Contatti avvisati!',
-    mode_hors_ligne: '📡 Modalità offline — dati dal chip NFC',
-    bracelet_introuvable: 'Braccialetto non trovato',
-    appeler: 'Chiama',
+    offline: 'Offline',
+    donneur: 'Donatore',
+    race: 'Razza',
+    espece: 'Specie',
+    poste: 'Posizione',
+    contact_rh: 'Contatto HR',
   },
 }
+
+type LangKey = keyof typeof TRANSLATIONS
 
 function formatTime() {
   return new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
@@ -176,13 +190,11 @@ function getAlertePills(fiche: Partial<Fiche>): string[] {
   if (fiche.allergies) {
     fiche.allergies.split(',').forEach(a => {
       const t = a.trim()
-      if (t) pills.push(`🚫 Allergie ${t}`)
+      if (t) pills.push(`🚫 ${t}`)
     })
   }
-  if (fiche.traitements?.toLowerCase().includes('anticoagulant') ||
-      fiche.traitements?.toLowerCase().includes('rivaroxaban') ||
-      fiche.traitements?.toLowerCase().includes('warfarine') ||
-      fiche.traitements?.toLowerCase().includes('xarelto')) {
+  const traits = fiche.traitements?.toLowerCase() || ''
+  if (traits.includes('anticoagulant') || traits.includes('rivaroxaban') || traits.includes('warfarine') || traits.includes('xarelto')) {
     pills.push('💊 Anticoagulants')
   }
   if (fiche.pathologies) {
@@ -205,28 +217,38 @@ export default function PublicPage() {
   const [nomProfil, setNomProfil] = useState('')
   const [loading, setLoading] = useState(true)
   const [isOffline, setIsOffline] = useState(false)
+  const [lang, setLang] = useState<LangKey>('fr')
   const [time, setTime] = useState(formatTime())
-  const [geoCoords, setGeoCoords] = useState<{ lat: number; lon: number } | null>(null)
   const [alertSent, setAlertSent] = useState(false)
   const [alertSending, setAlertSending] = useState(false)
-  const [lang, setLang] = useState<LangKey>('fr')
+  const geoRef = useRef<{ lat: number; lon: number } | null>(null)
 
   useEffect(() => {
-    // Detect language from browser
-    const navLang = (navigator.language || 'fr').slice(0, 2).toLowerCase() as LangKey
-    if (TRANSLATIONS[navLang]) setLang(navLang)
+    // Detect language
+    const navLang = navigator.language?.substring(0, 2).toLowerCase() as LangKey
+    if (navLang && TRANSLATIONS[navLang]) setLang(navLang)
   }, [])
 
-  const t = TRANSLATIONS[lang]
-
   useEffect(() => {
-    const timer = setInterval(() => setTime(formatTime()), 30000)
-    return () => clearInterval(timer)
+    const t = setInterval(() => setTime(formatTime()), 30000)
+    return () => clearInterval(t)
   }, [])
 
   useEffect(() => {
     async function load() {
-      // Try online first
+      // Try geolocation
+      if (navigator.geolocation) {
+        const geoPromise = new Promise<void>(resolve => {
+          const timer = setTimeout(resolve, 3000)
+          navigator.geolocation.getCurrentPosition(
+            pos => { clearTimeout(timer); geoRef.current = { lat: pos.coords.latitude, lon: pos.coords.longitude }; resolve() },
+            () => { clearTimeout(timer); resolve() },
+            { timeout: 3000, maximumAge: 60000 }
+          )
+        })
+        await geoPromise
+      }
+
       if (navigator.onLine) {
         try {
           const supabase = createClient()
@@ -235,35 +257,12 @@ export default function PublicPage() {
             supabase.from('bracelets').select('nom_profil, gamme').eq('bracelet_id', braceletId).maybeSingle(),
           ])
 
-          // Log scan with geolocation (attempt with 3s timeout)
-          const logScanWithGeo = async () => {
-            let lat: number | null = null
-            let lon: number | null = null
-
-            try {
-              const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-                const timer = setTimeout(() => reject(new Error('timeout')), 3000)
-                navigator.geolocation.getCurrentPosition(
-                  p => { clearTimeout(timer); resolve(p) },
-                  err => { clearTimeout(timer); reject(err) },
-                  { timeout: 3000, maximumAge: 60000 }
-                )
-              })
-              lat = pos.coords.latitude
-              lon = pos.coords.longitude
-              setGeoCoords({ lat, lon })
-            } catch {
-              // géoloc échouée ou refusée — on insère quand même
-            }
-
-            void supabase.from('scans').insert({
-              bracelet_id: braceletId,
-              user_agent: navigator.userAgent.slice(0, 200),
-              ...(lat !== null && lon !== null ? { latitude: lat, longitude: lon } : {}),
-            })
-          }
-
-          void logScanWithGeo()
+          void supabase.from('scans').insert({
+            bracelet_id: braceletId,
+            user_agent: navigator.userAgent.slice(0, 200),
+            latitude: geoRef.current?.lat ?? null,
+            longitude: geoRef.current?.lon ?? null,
+          })
 
           if (ficheData) {
             setFiche(ficheData)
@@ -275,7 +274,6 @@ export default function PublicPage() {
         } catch {}
       }
 
-      // Fallback: offline data from URL
       if (encodedData) {
         const decoded = decodeFicheFromNFC(encodedData)
         if (decoded) {
@@ -300,22 +298,21 @@ export default function PublicPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           bracelet_id: braceletId,
-          latitude: geoCoords?.lat ?? null,
-          longitude: geoCoords?.lon ?? null,
+          latitude: geoRef.current?.lat,
+          longitude: geoRef.current?.lon,
         }),
       })
       setAlertSent(true)
-    } catch {
-      setAlertSent(true)
-    } finally {
-      setAlertSending(false)
-    }
+    } catch {}
+    setAlertSending(false)
   }
+
+  const t = TRANSLATIONS[lang]
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: '#1E1A16', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ width: 32, height: 32, border: '3px solid rgba(255,255,255,.2)', borderTopColor: '#E8472A', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+      <div style={{ minHeight: '100vh', background: '#0E0E0E', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 32, height: 32, border: '3px solid rgba(255,255,255,.15)', borderTopColor: '#E8472A', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
       </div>
     )
   }
@@ -325,11 +322,10 @@ export default function PublicPage() {
       <div className="pub-not-found">
         <div>
           <div style={{ fontSize: 52, marginBottom: 16 }}>🔍</div>
-          <h1>{t.bracelet_introuvable}</h1>
-          <p>L'identifiant <strong>{braceletId}</strong> ne correspond à aucun bracelet enregistré.</p>
+          <h1 style={{ marginBottom: 8 }}>Bracelet introuvable</h1>
+          <p>L&apos;identifiant <strong>{braceletId}</strong> ne correspond à aucun bracelet.</p>
           <p style={{ marginTop: 12 }}>
-            Vérifiez l'identifiant ou rendez-vous sur{' '}
-            <a href="https://pulsmee.fr" style={{ color: 'white', fontWeight: 700 }}>pulsmee.fr</a>.
+            <a href="https://pulsmee.fr" style={{ color: '#E8472A', fontWeight: 700 }}>pulsmee.fr</a>
           </p>
         </div>
       </div>
@@ -337,201 +333,234 @@ export default function PublicPage() {
   }
 
   const gammeColor = GAMME_COLORS[gamme] ?? '#E8472A'
+  const gammeColorDark = gamme === 'Care' ? '#C73518' : gamme === 'Kids' ? '#7A52B0' : gamme === 'Sport' ? '#1F6B52' : gamme === 'Pet' ? '#C77318' : '#2A4568'
   const isPet = gamme === 'Pet'
   const isKids = gamme === 'Kids'
   const isWork = gamme === 'Work'
-
   const age = calcAge(fiche.date_naissance)
   const alertes = getAlertePills(fiche)
 
   const contacts = [
-    { nom: fiche.contact1_nom, tel: fiche.contact1_tel, role: isKids ? t.contacts_parent1 : isPet ? t.contacts_proprio : t.contacts, ava: '👩' },
-    { nom: fiche.contact2_nom, tel: fiche.contact2_tel, role: isKids ? t.contacts_parent2 : isPet ? t.contacts_proprio2 : t.contacts2, ava: '👦' },
-    { nom: fiche.contact3_nom, tel: fiche.contact3_tel, role: t.contacts3, ava: '👤' },
+    { nom: fiche.contact1_nom, tel: fiche.contact1_tel, relation: (fiche as Fiche & { contact1_relation?: string }).contact1_relation || '' },
+    { nom: fiche.contact2_nom, tel: fiche.contact2_tel, relation: (fiche as Fiche & { contact2_relation?: string }).contact2_relation || '' },
+    { nom: fiche.contact3_nom, tel: fiche.contact3_tel, relation: (fiche as Fiche & { contact3_relation?: string }).contact3_relation || '' },
   ].filter(c => c.nom && c.tel)
-
-  const mainContact = contacts[0]
 
   let habilitations: Habilitation[] = []
   if (isWork) {
     try { habilitations = JSON.parse((fiche as Fiche & { habilitations?: string }).habilitations || '[]') } catch {}
   }
 
+  const emergency = getEmergencyInfo()
+  const badgeText = isPet ? t.animal : isKids ? t.enfant : isWork ? t.chantier : t.urgence
+  const initial = isPet ? '🐾' : (fiche.nom_complet || nomProfil || '?').charAt(0).toUpperCase()
+  const bodyBg = gamme === 'Care' ? '#FFF5F5' : gamme === 'Kids' ? '#F5F0FF' : gamme === 'Sport' ? '#F0FDF4' : gamme === 'Pet' ? '#FFF7ED' : '#EFF6FF'
+
   return (
     <div className="pub-wrap">
       {isOffline && (
-        <div style={{ background: '#92400e', color: '#fef3c7', textAlign: 'center', padding: '8px 16px', fontSize: 12, fontWeight: 600 }}>
-          {t.mode_hors_ligne}
-        </div>
+        <div className="pub-offline-banner">{t.hors_ligne}</div>
       )}
       <div className="pub-phone">
-        <div className="pub-back-bar">
-          <a href="/dashboard" className="pub-back-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
-            Retour
-          </a>
-        </div>
-        <div className="pub-statusbar">
-          <span>{time}</span>
-          <span>{isOffline ? '📵' : '📶'} 🔋</span>
+
+        {/* Status bar */}
+        <div className="pub-statusbar" style={{ background: `linear-gradient(160deg, ${gammeColorDark}, ${gammeColor})` }}>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{time}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <svg width="14" height="10" viewBox="0 0 14 10" fill="white" opacity="0.8"><rect x="0" y="5" width="2" height="5" rx="0.5"/><rect x="3" y="3" width="2" height="7" rx="0.5"/><rect x="6" y="1" width="2" height="9" rx="0.5"/><rect x="9" y="0" width="2" height="10" rx="0.5"/></svg>
+            <svg width="20" height="10" viewBox="0 0 20 10" fill="none" opacity="0.8"><rect x="0" y="1" width="17" height="8" rx="2" stroke="white" strokeWidth="1.2"/><rect x="17.5" y="3" width="2" height="4" rx="1" fill="white"/><rect x="1" y="2" width="12" height="6" rx="1.2" fill="white"/></svg>
+          </div>
         </div>
 
-        <div className="pub-hero" style={{ background: `linear-gradient(135deg, ${gammeColor}22 0%, transparent 60%)` }}>
-          <div className="pub-badge" style={{ background: `${gammeColor}22`, color: gammeColor, borderColor: `${gammeColor}44` }}>
-            <div className="pub-blink" style={{ background: gammeColor }} />
-            {isPet ? t.fiche_animale : t.urgence_medicale}
+        {/* Lang bar */}
+        <div className="pub-langbar" style={{ background: `linear-gradient(160deg, ${gammeColorDark}, ${gammeColor})` }}>
+          <span className="pub-globe">🌐</span>
+          {(['fr','en','es','de','it'] as LangKey[]).map(l => (
+            <button key={l} className={`pub-langbtn${lang === l ? ' active' : ''}`} onClick={() => setLang(l)}>
+              {l.toUpperCase()}
+            </button>
+          ))}
+        </div>
+
+        {/* Hero */}
+        <div className="pub-hero" style={{ background: `linear-gradient(160deg, ${gammeColorDark}, ${gammeColor})` }}>
+          <div className="pub-avatar-initial">
+            {fiche.photo_url && !isPet
+              ? <img src={fiche.photo_url} alt={fiche.nom_complet || ''} />
+              : <span style={{ fontSize: isPet ? 22 : 20 }}>{initial}</span>
+            }
           </div>
-          {fiche.photo_url && !isPet && (
-            <img src={fiche.photo_url} alt={fiche.nom_complet} className="pub-photo" style={{ borderColor: gammeColor }} />
-          )}
+
+          <div className="pub-badge">
+            <div className="pub-blink" />
+            {badgeText}
+          </div>
+
           <div className="pub-name">{fiche.nom_complet || nomProfil || 'Porteur du bracelet'}</div>
+
           <div className="pub-meta">
             {isPet && fiche.espece && <span>{fiche.espece}{fiche.race ? ` · ${fiche.race}` : ''}</span>}
-            {isWork && fiche.poste && <span style={{ fontSize: 12 }}>{fiche.poste}</span>}
+            {isWork && fiche.poste && <span>{fiche.poste}</span>}
             {age !== null && <span>{age} ans</span>}
-            {age !== null && fiche.groupe_sanguin ? ' · ' : null}
             {fiche.groupe_sanguin && !isPet && (
-              <span className="pub-blood" style={{ background: `${gammeColor}22`, color: gammeColor }}>{fiche.groupe_sanguin}</span>
+              <span className="pub-blood-tag" style={{ color: gammeColor }}>{fiche.groupe_sanguin}</span>
             )}
           </div>
-          {mainContact && (
-            <a href={`tel:${mainContact.tel}`} className="pub-cta" style={{ background: gammeColor }}>
-              📞 {t.appeler} {mainContact.nom!.split(' ')[0]}
-            </a>
-          )}
+
+          {/* Emergency button */}
+          <a href={`tel:${emergency.number}`} className="pub-emergency-btn" style={{ color: gammeColor }}>
+            🚨 {emergency.label}
+          </a>
         </div>
 
-        <div className="pub-body">
+        {/* Body */}
+        <div className="pub-body" style={{ background: bodyBg }}>
+
+          {/* Alertes */}
           {alertes.length > 0 && (
-            <div className="pub-alert" style={{ borderColor: `${gammeColor}44`, background: `${gammeColor}08` }}>
-              <div className="pub-alert-title" style={{ color: gammeColor }}>{t.alertes_critiques}</div>
+            <div className="pub-alert" style={{ background: `${gammeColor}15`, borderColor: `${gammeColor}40` }}>
+              <div className="pub-alert-title" style={{ color: gammeColorDark }}>⚠️ {t.alertes}</div>
               <div className="pub-pills">
                 {alertes.map((a, i) => (
-                  <span key={i} className="pub-pill" style={{ background: `${gammeColor}15`, color: gammeColor, borderColor: `${gammeColor}30` }}>{a}</span>
+                  <span key={i} className="pub-pill" style={{ background: i === 0 ? '#EF4444' : i === 1 ? '#DC2626' : '#B91C1C' }}>{a}</span>
                 ))}
               </div>
             </div>
           )}
 
-          <div className="pub-card">
-            {!isPet && fiche.groupe_sanguin && (
+          {/* Allergies (toujours visible si présent) */}
+          {fiche.allergies && alertes.filter(a => a.startsWith('🚫')).length === 0 && (
+            <div className="pub-card">
               <div className="pub-row">
-                <span className="pub-rl">{t.groupe_sanguin}</span>
-                <span className="pub-rv" style={{ color: gammeColor, fontWeight: 700 }}>{fiche.groupe_sanguin}</span>
+                <span className="pub-rl">{t.allergies}</span>
+                <span className="pub-rv danger">{fiche.allergies}</span>
               </div>
-            )}
-            {fiche.traitements && (
-              <div className="pub-row">
-                <span className="pub-rl">{isPet ? t.traitement_vet : t.traitement}</span>
-                <span className="pub-rv" style={{ color: '#EF4444', maxWidth: '60%' }}>
-                  {fiche.traitements.slice(0, 80)}{fiche.traitements.length > 80 ? '...' : ''}
-                </span>
-              </div>
-            )}
-            {fiche.pathologies && !isPet && !isWork && (
-              <div className="pub-row">
-                <span className="pub-rl">{t.pathologies}</span>
-                <span className="pub-rv" style={{ maxWidth: '60%' }}>{fiche.pathologies}</span>
-              </div>
-            )}
-            {fiche.medecin && (
-              <div className="pub-row">
-                <span className="pub-rl">{isPet ? t.medecin_vet : isWork ? t.medecin_rh : t.medecin}</span>
-                <span className="pub-rv">{fiche.medecin}</span>
-              </div>
-            )}
-            {fiche.medecin_tel && (
-              <div className="pub-row">
-                <span className="pub-rl">{t.telephone}</span>
-                <span className="pub-rv">
-                  <a href={`tel:${fiche.medecin_tel}`} style={{ color: gammeColor, fontWeight: 700 }}>{fiche.medecin_tel}</a>
-                </span>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
+          {/* Infos médicales */}
+          {(!isPet) && (fiche.groupe_sanguin || fiche.traitements || fiche.pathologies) && (
+            <div className="pub-card">
+              {fiche.groupe_sanguin && (
+                <div className="pub-row">
+                  <span className="pub-rl">{t.groupe_sanguin}</span>
+                  <span className="pub-rv" style={{ color: gammeColor, fontWeight: 800 }}>{fiche.groupe_sanguin}</span>
+                </div>
+              )}
+              {fiche.traitements && (
+                <div className="pub-row">
+                  <span className="pub-rl">{t.traitement}</span>
+                  <span className="pub-rv danger">{fiche.traitements.slice(0, 80)}{fiche.traitements.length > 80 ? '…' : ''}</span>
+                </div>
+              )}
+              {fiche.pathologies && !isWork && (
+                <div className="pub-row">
+                  <span className="pub-rl">{t.pathologies}</span>
+                  <span className="pub-rv">{fiche.pathologies}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Infos Pet */}
+          {isPet && (fiche.espece || fiche.race || fiche.traitements) && (
+            <div className="pub-card">
+              {fiche.espece && <div className="pub-row"><span className="pub-rl">{t.espece}</span><span className="pub-rv">{fiche.espece}</span></div>}
+              {fiche.race && <div className="pub-row"><span className="pub-rl">{t.race}</span><span className="pub-rv">{fiche.race}</span></div>}
+              {fiche.traitements && <div className="pub-row"><span className="pub-rl">{t.traitement}</span><span className="pub-rv danger">{fiche.traitements}</span></div>}
+            </div>
+          )}
+
+          {/* Habilitations Work */}
           {isWork && habilitations.length > 0 && (
             <div className="pub-card">
-              <div className="pub-row" style={{ borderBottom: '1px solid var(--stone)', paddingBottom: 8, marginBottom: 8 }}>
-                <span className="pub-rl" style={{ fontWeight: 700, color: 'var(--ink)' }}>{t.habilitations}</span>
+              <div className="pub-row" style={{ background: '#F9FAFB' }}>
+                <span className="pub-rl" style={{ color: '#374151' }}>📜 {t.habilitations}</span>
               </div>
               {habilitations.map((h, i) => (
-                <div key={i} className="pub-row">
-                  <span className="pub-rl">{h.nom}</span>
-                  <span className="pub-rv">{h.statut === 'valid' ? '🟢 Valide' : h.statut === 'soon' ? '🟠 Expire bientôt' : '🔴 Expiré'}</span>
+                <div key={i} className="pub-hab-row">
+                  <span className="pub-hab-name">{h.nom}</span>
+                  <span className={`pub-hab-pill ${h.statut}`}>
+                    {h.statut === 'valid' ? '✅ Valide' : h.statut === 'soon' ? '⚠️ Bientôt' : '❌ Expiré'}
+                  </span>
                 </div>
               ))}
             </div>
           )}
 
+          {/* Guide autisme Kids */}
           {isKids && fiche.guide_autisme && (
-            <div className="pub-consignes" style={{ background: `${gammeColor}10`, borderColor: `${gammeColor}30`, color: 'var(--ink)' }}>
-              <div style={{ fontWeight: 700, marginBottom: 6, color: gammeColor }}>{t.guide_approche}</div>
+            <div className="pub-consignes" style={{ background: `${gammeColor}10`, borderLeft: `3px solid ${gammeColor}` }}>
+              <div className="pub-consignes-title" style={{ color: gammeColor }}>💙 {t.guide}</div>
               {fiche.guide_autisme}
             </div>
           )}
 
+          {/* Médecin — carte séparée */}
+          {(fiche.medecin || fiche.medecin_tel) && (
+            <div className="pub-doctor-card">
+              <div className="pub-doctor-header">
+                🩺 {isPet ? t.veterinaire : isWork ? t.contact_rh : t.medecin}
+              </div>
+              {fiche.medecin && (
+                <div className="pub-row">
+                  <span className="pub-rl">{t.medecin}</span>
+                  <span className="pub-rv">{fiche.medecin}</span>
+                </div>
+              )}
+              {fiche.medecin_tel && (
+                <div className="pub-row">
+                  <span className="pub-rl">{t.telephone}</span>
+                  <span className="pub-rv">
+                    <a href={`tel:${fiche.medecin_tel}`} style={{ color: gammeColor, fontWeight: 700 }}>{fiche.medecin_tel}</a>
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Bouton prévenir contacts */}
           {contacts.length > 0 && (
             <button
+              className="pub-alert-btn"
+              style={{ background: alertSent ? '#16A34A' : gammeColor }}
               onClick={handleAlertContacts}
               disabled={alertSent || alertSending}
-              style={{
-                background: alertSent ? '#6B7280' : gammeColor,
-                color: 'white',
-                borderRadius: 12,
-                padding: 14,
-                width: '100%',
-                fontSize: 15,
-                fontWeight: 700,
-                border: 'none',
-                cursor: alertSent ? 'default' : 'pointer',
-                marginBottom: 12,
-              }}
             >
-              {alertSending ? '...' : alertSent ? t.contacts_prevenus : t.prevenir_contacts}
+              {alertSending ? '⏳ Envoi...' : alertSent ? t.prevenu : t.prevenir}
             </button>
           )}
 
+          {/* Contacts */}
           {contacts.map((c, i) => (
             <div key={i} className="pub-contact">
-              <div className="pub-ava" style={{ background: i === 0 ? `${gammeColor}22` : '#EDE9FE' }}>{c.ava}</div>
-              <div style={{ flex: 1 }}>
-                <div className="pub-cname">{c.nom}</div>
-                <div className="pub-crole">{c.role}</div>
+              <div className="pub-ava" style={{ background: i === 0 ? `${gammeColor}20` : '#F3F4F6' }}>
+                {getRelationEmoji(c.relation)}
               </div>
-              <a href={`tel:${c.tel}`} className="pub-call" style={{ background: gammeColor }}>📞 {t.appeler}</a>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="pub-cname">{c.nom}</div>
+                <div className="pub-crole">
+                  {c.relation ? getRelationLabel(c.relation) : (i === 0 ? t.prioritaire : `Contact ${i + 1}`)}
+                </div>
+              </div>
+              <a href={`tel:${c.tel}`} className="pub-call" style={{ background: gammeColor }}>📞</a>
             </div>
           ))}
 
+          {/* Consignes */}
           {fiche.consignes && (
-            <div className="pub-consignes">{fiche.consignes}</div>
+            <div className="pub-consignes">
+              <div className="pub-consignes-title">{t.consignes}</div>
+              {fiche.consignes}
+            </div>
           )}
+
         </div>
 
+        {/* Footer */}
         <div className="pub-footer">
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 8 }}>
-            {(['fr', 'en', 'es', 'de', 'it'] as LangKey[]).map(l => (
-              <button
-                key={l}
-                onClick={() => setLang(l)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: 18,
-                  fontWeight: lang === l ? 700 : 400,
-                  color: lang === l ? gammeColor : 'var(--ink-mid)',
-                  padding: '2px 4px',
-                  borderRadius: 4,
-                }}
-                aria-label={l}
-              >
-                {l === 'fr' ? '🇫🇷' : l === 'en' ? '🇬🇧' : l === 'es' ? '🇪🇸' : l === 'de' ? '🇩🇪' : '🇮🇹'}
-              </button>
-            ))}
-          </div>
-          <div className="pub-footer-brand" style={{ color: gammeColor }}>✦ Pulsmee {gamme} · Fiche d'urgence</div>
-          <div className="pub-footer-sub">{t.sans_app} · {isOffline ? t.hors_ligne : t.en_ligne} · pulsmee.fr/p/{braceletId}</div>
+          <div className="pub-footer-brand" style={{ color: gammeColor }}>✦ Pulsmee {gamme} · Fiche d&apos;urgence</div>
+          <div className="pub-footer-sub">{t.sans_app} · {isOffline ? t.offline : t.en_ligne} · pulsmee.fr/p/{braceletId}</div>
         </div>
       </div>
     </div>

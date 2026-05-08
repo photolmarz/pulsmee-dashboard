@@ -4,7 +4,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Logo from '@/components/Logo'
 import Drawer from '@/components/Drawer'
 import { createClient } from '@/lib/supabase'
-import { downloadVCard, calcAge, GAMME_COLORS, encodeFicheForNFC } from '@/lib/utils'
+import { downloadVCard, calcAge, GAMME_COLORS, encodeFicheForNFC, RELATION_OPTIONS } from '@/lib/utils'
 import type { User } from '@supabase/supabase-js'
 import type { Bracelet, Fiche } from '@/types'
 
@@ -25,9 +25,9 @@ function defaultFiche(braceletId: string, gamme: string): Fiche {
     id: '', bracelet_id: braceletId,
     nom_complet: '', date_naissance: null, groupe_sanguin: '',
     allergies: '', traitements: '', pathologies: '',
-    contact1_nom: '', contact1_tel: '',
-    contact2_nom: '', contact2_tel: '',
-    contact3_nom: '', contact3_tel: '',
+    contact1_nom: '', contact1_tel: '', contact1_relation: '',
+    contact2_nom: '', contact2_tel: '', contact2_relation: '',
+    contact3_nom: '', contact3_tel: '', contact3_relation: '',
     medecin: '', medecin_tel: '', consignes: '',
     photo_url: null,
     poste: '',
@@ -137,9 +137,9 @@ export default function FichePage() {
         allergies: fiche.allergies,
         traitements: fiche.traitements,
         pathologies: fiche.pathologies,
-        contact1_nom: fiche.contact1_nom, contact1_tel: fiche.contact1_tel,
-        contact2_nom: fiche.contact2_nom, contact2_tel: fiche.contact2_tel,
-        contact3_nom: fiche.contact3_nom, contact3_tel: fiche.contact3_tel,
+        contact1_nom: fiche.contact1_nom, contact1_tel: fiche.contact1_tel, contact1_relation: fiche.contact1_relation,
+        contact2_nom: fiche.contact2_nom, contact2_tel: fiche.contact2_tel, contact2_relation: fiche.contact2_relation,
+        contact3_nom: fiche.contact3_nom, contact3_tel: fiche.contact3_tel, contact3_relation: fiche.contact3_relation,
         medecin: fiche.medecin, medecin_tel: fiche.medecin_tel,
         consignes: fiche.consignes,
         poste: fiche.poste,
@@ -205,9 +205,13 @@ export default function FichePage() {
       const nfcUrl = `https://pulsmee.fr/p/${bracelet.bracelet_id}?v=${encoded}`
       try {
         await navigator.clipboard.writeText(nfcUrl)
-        showToast('📋 URL copiée ! Ouverture de NFC Tools...')
+        setToast('📋 URL copiée ! Dans NFC Tools : Write → + → URL → Coller → OK → Approcher le bracelet')
+        clearTimeout(toastTimer.current)
+        toastTimer.current = setTimeout(() => setToast(null), 6000)
       } catch {
-        showToast('📋 Ouvre NFC Tools et colle l\'URL manuellement')
+        setToast('📋 Ouvre NFC Tools et colle l\'URL manuellement')
+        clearTimeout(toastTimer.current)
+        toastTimer.current = setTimeout(() => setToast(null), 6000)
       }
       // Tente d'ouvrir NFC Tools
       window.location.href = 'nfctools://'
@@ -474,21 +478,30 @@ export default function FichePage() {
                   label: isKids ? 'Parent 1 — Prioritaire' : isPet ? 'Propriétaire 1 — Prioritaire' : 'Contact 1 — Prioritaire',
                   nomKey: 'contact1_nom' as const,
                   telKey: 'contact1_tel' as const,
+                  relKey: 'contact1_relation' as const,
                 },
                 {
                   label: isKids ? 'Parent 2' : isPet ? 'Propriétaire 2' : 'Contact 2',
                   nomKey: 'contact2_nom' as const,
                   telKey: 'contact2_tel' as const,
+                  relKey: 'contact2_relation' as const,
                 },
                 ...(!isPet && !isKids ? [{
                   label: 'Contact 3',
                   nomKey: 'contact3_nom' as const,
                   telKey: 'contact3_tel' as const,
+                  relKey: 'contact3_relation' as const,
                 }] : []),
-              ]).map(({ label, nomKey, telKey }) => (
+              ]).map(({ label, nomKey, telKey, relKey }) => (
                 <div key={nomKey} className="contact-block">
                   <div className="cb-label">{label}</div>
                   <div className="fi-row">
+                    <select className="fi-input" style={{ cursor: 'pointer' }} value={fiche?.[relKey] ?? ''} onChange={e => update(relKey, e.target.value)}>
+                      <option value="">— Relation —</option>
+                      {RELATION_OPTIONS.map(r => (
+                        <option key={r.value} value={r.value}>{r.emoji} {r.label}</option>
+                      ))}
+                    </select>
                     <input type="text" className="fi-input" value={fiche?.[nomKey] ?? ''} onChange={e => update(nomKey, e.target.value)} placeholder="Nom du contact" />
                     <input type="tel" className="fi-input" value={fiche?.[telKey] ?? ''} onChange={e => update(telKey, e.target.value)} placeholder="06 XX XX XX XX" />
                   </div>
@@ -513,9 +526,16 @@ export default function FichePage() {
 
           {/* ── NFC ── */}
           {ficheRemplie && bracelet?.bracelet_id && (
+            <>
+            {!bracelet.puce_programmee && (
+              <div style={{ background: '#FFF7ED', border: '1.5px solid #F97316', borderRadius: 12, padding: 12, marginBottom: 12 }}>
+                <div style={{ fontWeight: 800, fontSize: 13, color: '#C2410C', marginBottom: 4 }}>⚠️ Reprogrammation nécessaire</div>
+                <div style={{ fontSize: 12, color: '#92400E' }}>Votre fiche a été modifiée. Reprogrammez la puce NFC pour que le bracelet fonctionne hors ligne.</div>
+              </div>
+            )}
             <div className="nfc-block" style={{ borderColor: `${gammeColor}30` }}>
               <div className="nfc-title">
-                📡 {bracelet?.puce_programmee ? 'Bracelet programmé ✅' : '⚠️ Reprogrammation nécessaire'}
+                📡 {bracelet?.puce_programmee ? 'Bracelet programmé ✅' : 'Programmer ma puce NFC'}
               </div>
               <p className="nfc-desc">Pour que votre bracelet fonctionne <strong>sans réseau</strong>, programmez la puce NFC.</p>
               <div className="nfc-step">
@@ -546,6 +566,7 @@ export default function FichePage() {
                 </div>
               )}
             </div>
+            </>
           )}
 
           {!ficheRemplie && (

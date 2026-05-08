@@ -126,3 +126,8 @@ CREATE POLICY IF NOT EXISTS "Update photos own" ON storage.objects
 -- Migration scans géolocalisation
 ALTER TABLE scans ADD COLUMN IF NOT EXISTS latitude FLOAT;
 ALTER TABLE scans ADD COLUMN IF NOT EXISTS longitude FLOAT;
+
+-- Migration relations contacts
+ALTER TABLE fiches ADD COLUMN IF NOT EXISTS contact1_relation TEXT DEFAULT '';
+ALTER TABLE fiches ADD COLUMN IF NOT EXISTS contact2_relation TEXT DEFAULT '';
+ALTER TABLE fiches ADD COLUMN IF NOT EXISTS contact3_relation TEXT DEFAULT '';
