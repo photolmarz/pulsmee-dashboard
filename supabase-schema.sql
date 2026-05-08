@@ -122,3 +122,7 @@ CREATE POLICY IF NOT EXISTS "Read photos public" ON storage.objects
 
 CREATE POLICY IF NOT EXISTS "Update photos own" ON storage.objects
   FOR UPDATE USING (bucket_id = 'photos' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- Migration scans géolocalisation
+ALTER TABLE scans ADD COLUMN IF NOT EXISTS latitude FLOAT;
+ALTER TABLE scans ADD COLUMN IF NOT EXISTS longitude FLOAT;

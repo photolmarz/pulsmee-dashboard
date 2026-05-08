@@ -43,4 +43,6 @@ export type Scan = {
   bracelet_id: string
   scanned_at: string
   user_agent: string
+  latitude?: number | null
+  longitude?: number | null
 }

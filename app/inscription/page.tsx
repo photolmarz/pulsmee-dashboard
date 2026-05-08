@@ -15,6 +15,10 @@ export default function InscriptionPage() {
   const [prenom, setPrenom] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [forgotMode, setForgotMode] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotSent, setForgotSent] = useState(false)
+  const [forgotLoading, setForgotLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -57,12 +61,28 @@ export default function InscriptionPage() {
     }
   }
 
+  async function handleForgotPassword(e: React.FormEvent) {
+    e.preventDefault()
+    setForgotLoading(true)
+    try {
+      await supabase.auth.resetPasswordForEmail(forgotEmail, {
+        redirectTo: 'https://dashboard.pulsmee.fr/reset-password',
+      })
+      setForgotSent(true)
+    } finally {
+      setForgotLoading(false)
+    }
+  }
+
   function switchTab(t: Tab) {
     setTab(t)
     setError('')
     setEmail('')
     setPassword('')
     setPrenom('')
+    setForgotMode(false)
+    setForgotSent(false)
+    setForgotEmail('')
   }
 
   return (
@@ -112,6 +132,34 @@ export default function InscriptionPage() {
               Déjà un compte ? <button type="button" onClick={() => switchTab('login')}>Se connecter</button>
             </div>
           </>
+        ) : forgotMode ? (
+          <>
+            <div className="insc-eyebrow">Réinitialisation</div>
+            <h1 className="insc-title">Mot de passe<br /><em>oublié ?</em></h1>
+
+            {forgotSent ? (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
+                <p style={{ color: 'var(--ink)', fontWeight: 600 }}>Email envoyé ! Vérifiez votre boîte mail.</p>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotPassword}>
+                <div className="f-group">
+                  <label className="f-lbl" htmlFor="email-forgot">Email</label>
+                  <input id="email-forgot" type="email" className="f-inp" placeholder="jean@exemple.fr" value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} required autoComplete="email" />
+                </div>
+                <button className="btn-primary" type="submit" disabled={forgotLoading}>
+                  {forgotLoading ? <span className="spinner" /> : null}
+                  {forgotLoading ? 'Envoi...' : 'Envoyer le lien →'}
+                </button>
+              </form>
+            )}
+            <div className="insc-link">
+              <button type="button" onClick={() => { setForgotMode(false); setForgotSent(false); setForgotEmail('') }}>
+                ← Retour à la connexion
+              </button>
+            </div>
+          </>
         ) : (
           <>
             <div className="insc-eyebrow">Connexion</div>
@@ -129,6 +177,13 @@ export default function InscriptionPage() {
                 <label className="f-lbl" htmlFor="password-login">Mot de passe</label>
                 <input id="password-login" type="password" className="f-inp" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" />
               </div>
+              <a
+                href="#"
+                onClick={e => { e.preventDefault(); setForgotMode(true); setForgotEmail(email) }}
+                style={{ display: 'block', textAlign: 'right', fontSize: 12, color: 'var(--pulse-mid)', marginBottom: 12, textDecoration: 'none' }}
+              >
+                Mot de passe oublié ?
+              </a>
               <button className="btn-primary" type="submit" disabled={loading}>
                 {loading ? <span className="spinner" /> : null}
                 {loading ? 'Connexion...' : 'Se connecter →'}

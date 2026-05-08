@@ -129,6 +129,43 @@ export default function DashboardPage() {
               : `${bracelets.length} bracelet${bracelets.length > 1 ? 's' : ''} actif${bracelets.length > 1 ? 's' : ''} sur votre compte.`}
           </p>
 
+          {/* Onboarding — affiché si aucun bracelet ou puce non programmée */}
+          {(bracelets.length === 0 || !bracelets[0]?.puce_programmee) && (() => {
+            const step1Done = bracelets.length > 0
+            const step2Done = bracelets.length > 0
+            const step3Done = bracelets[0]?.puce_programmee === true
+            const steps = [
+              { label: 'Activer ton bracelet', done: step1Done, action: !step1Done ? <button onClick={() => setShowActivation(true)} style={{ background: 'var(--pulse)', color: 'white', border: 'none', borderRadius: 8, padding: '4px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Activer →</button> : null },
+              { label: 'Remplir ta fiche médicale', done: step2Done, action: step1Done && !step2Done ? <button onClick={() => bracelets[0] && router.push(`/fiche/${bracelets[0].bracelet_id}`)} style={{ background: 'var(--pulse)', color: 'white', border: 'none', borderRadius: 8, padding: '4px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Remplir →</button> : null },
+              { label: 'Programmer ta puce NFC', done: step3Done, action: step2Done && !step3Done ? <button onClick={() => bracelets[0] && router.push(`/fiche/${bracelets[0].bracelet_id}#nfc`)} style={{ background: 'var(--pulse)', color: 'white', border: 'none', borderRadius: 8, padding: '4px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Programmer →</button> : null },
+            ]
+            const currentStep = steps.findIndex(s => !s.done)
+            return (
+              <div style={{ background: 'white', borderRadius: 16, padding: 16, marginBottom: 20, border: '1px solid var(--stone)' }}>
+                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 12, color: 'var(--ink)' }}>🚀 Premiers pas</div>
+                {steps.map((s, i) => {
+                  const isCurrent = i === currentStep
+                  return (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: i < steps.length - 1 ? 12 : 0 }}>
+                      <div style={{
+                        width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 13, fontWeight: 700, flexShrink: 0,
+                        background: s.done ? '#22C55E' : isCurrent ? '#F97316' : '#E5E7EB',
+                        color: s.done || isCurrent ? 'white' : '#9CA3AF',
+                      }}>
+                        {s.done ? '✓' : i + 1}
+                      </div>
+                      <div style={{ flex: 1, fontSize: 13, color: s.done ? 'var(--ink-mid)' : 'var(--ink)', textDecoration: s.done ? 'line-through' : 'none' }}>
+                        {s.label}
+                      </div>
+                      {s.action}
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()}
+
           <div className="stats-row">
             <div className="stat-card">
               <div className="s-label">Bracelets</div>
@@ -226,16 +263,31 @@ export default function DashboardPage() {
                 <div className="card-title">⚡ Activité récente</div>
               </div>
               <div className="card-body">
-                {scans.slice(0, 8).map(scan => (
-                  <div key={scan.id} className="act-item">
-                    <div className="ai-ico" style={{ background: '#FEF2F2' }}>📡</div>
-                    <div className="ai-info">
-                      <div className="ai-name">Bracelet scanné — {scan.bracelet_id}</div>
-                      <div className="ai-detail">{scan.user_agent ? scan.user_agent.slice(0, 60) : 'Appareil inconnu'}</div>
+                {scans.slice(0, 8).map(scan => {
+                  const scanDate = new Date(scan.scanned_at)
+                  const formattedTime = scanDate.toLocaleString('fr-FR', {
+                    hour: '2-digit', minute: '2-digit',
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                  }).replace(',', ' ·')
+                  const mapsUrl = (scan.latitude != null && scan.longitude != null)
+                    ? `https://www.google.com/maps?q=${scan.latitude},${scan.longitude}`
+                    : null
+                  return (
+                    <div key={scan.id} className="act-item">
+                      <div className="ai-ico" style={{ background: '#FEF2F2' }}>📡</div>
+                      <div className="ai-info">
+                        <div className="ai-name">Bracelet scanné — {scan.bracelet_id}</div>
+                        <div className="ai-detail">
+                          {formattedTime}
+                          {mapsUrl
+                            ? <> · <a href={mapsUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--pulse-mid)', fontWeight: 600 }}>📍 Voir la position</a></>
+                            : scan.user_agent ? <> · {scan.user_agent.slice(0, 40)}</> : null}
+                        </div>
+                      </div>
+                      <div className="ai-time">{formatRelativeTime(scan.scanned_at)}</div>
                     </div>
-                    <div className="ai-time">{formatRelativeTime(scan.scanned_at)}</div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}
