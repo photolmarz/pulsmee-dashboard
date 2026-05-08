@@ -201,7 +201,7 @@ export default function FichePage() {
     try {
       // @ts-expect-error — Web NFC API
       const ndef = new NDEFReader()
-      const encoded = encodeFicheForNFC(fiche)
+      const encoded = encodeFicheForNFC(fiche!)
       const nfcUrl = `https://pulsmee.fr/p/${bracelet.bracelet_id}?v=${encoded}`
       await ndef.write({ records: [{ recordType: 'url', data: nfcUrl }] })
       await supabase.from('bracelets').update({ puce_programmee: true, derniere_programmation: new Date().toISOString() }).eq('bracelet_id', bracelet.bracelet_id)
