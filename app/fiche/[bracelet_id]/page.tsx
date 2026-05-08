@@ -193,7 +193,21 @@ export default function FichePage() {
   async function programNFC() {
     if (!bracelet) return
     if (!('NDEFReader' in window)) {
-      showToast('📱 Utilisez l\'app NFC Tools sur iPhone')
+      // iPhone : copie l'URL + ouvre NFC Tools, fallback App Store si non installé
+      const encoded = encodeFicheForNFC(fiche!)
+      const nfcUrl = `https://pulsmee.fr/p/${bracelet.bracelet_id}?v=${encoded}`
+      try {
+        await navigator.clipboard.writeText(nfcUrl)
+        showToast('📋 URL copiée ! Ouverture de NFC Tools...')
+      } catch {
+        showToast('📋 Ouvre NFC Tools et colle l\'URL manuellement')
+      }
+      // Tente d'ouvrir NFC Tools
+      window.location.href = 'nfctools://'
+      // Si l'app n'est pas installée, redirige vers l'App Store après 2s
+      setTimeout(() => {
+        window.location.href = 'https://apps.apple.com/app/nfc-tools/id1252962749'
+      }, 2000)
       return
     }
     setShowNFCModal(true)
