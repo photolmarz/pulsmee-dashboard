@@ -192,7 +192,14 @@ export default function FichePage() {
 
   async function programNFC() {
     if (!bracelet) return
+
     if (!('NDEFReader' in window)) {
+      const isAndroid = /android/i.test(navigator.userAgent)
+      if (isAndroid) {
+        // Android mais pas Chrome → demander de changer de navigateur
+        showToast('⚠️ Utilisez Chrome pour programmer la puce NFC')
+        return
+      }
       // iPhone : copie l'URL + ouvre NFC Tools, fallback App Store si non installé
       const encoded = encodeFicheForNFC(fiche!)
       const nfcUrl = `https://pulsmee.fr/p/${bracelet.bracelet_id}?v=${encoded}`
@@ -210,6 +217,7 @@ export default function FichePage() {
       }, 2000)
       return
     }
+
     setShowNFCModal(true)
     setNfcStatus('waiting')
     try {
@@ -223,9 +231,28 @@ export default function FichePage() {
       setNfcStatus('success')
       setTimeout(() => { setShowNFCModal(false); showToast('✅ Puce programmée !'); setNfcStatus('idle') }, 1500)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : ''
-      if (msg.includes('permission')) showToast('⚠️ Activez le NFC dans vos paramètres')
-      else showToast('❌ Erreur NFC')
+      const name = err instanceof Error ? err.name : ''
+      const msg = (err instanceof Error ? err.message : '').toLowerCase()
+
+      if (name === 'NetworkError' || msg.includes('network')) {
+        // Bracelet bougé pendant l'écriture
+        showToast('📡 Bracelet bougé — maintenez-le immobile et réessayez')
+      } else if (name === 'NotSupportedError' || msg.includes('not supported')) {
+        showToast('❌ Puce incompatible avec ce téléphone')
+      } else if (name === 'NotReadableError' || msg.includes('not readable')) {
+        showToast('🔒 Puce protégée en écriture')
+      } else if (name === 'NotAllowedError' || msg.includes('permission') || msg.includes('not allowed')) {
+        showToast('⚠️ Permission NFC refusée — autorisez Chrome dans vos paramètres')
+      } else if (msg.includes('not enabled') || msg.includes('disabled') || msg.includes('not available')) {
+        showToast('📴 NFC désactivé — ouverture des paramètres...')
+        setTimeout(() => {
+          window.location.href = 'intent:#Intent;action=android.settings.NFC_SETTINGS;end'
+        }, 1500)
+      } else if (name === 'AbortError' || msg.includes('abort') || msg.includes('cancel')) {
+        showToast('❌ Programmation annulée — réessayez')
+      } else {
+        showToast('❌ Erreur NFC — rapprochez le bracelet et réessayez')
+      }
       setNfcStatus('error')
       setShowNFCModal(false)
     }
