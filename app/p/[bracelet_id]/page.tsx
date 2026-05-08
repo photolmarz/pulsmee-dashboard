@@ -7,18 +7,41 @@ import type { Fiche } from '@/types'
 
 type Habilitation = { nom: string; statut: 'valid' | 'soon' | 'expired' }
 
-// Emergency numbers by country
-const EMERGENCY_NUMBERS: Record<string, string> = {
-  fr: '15', gb: '999', us: '911', ca: '911',
-  de: '112', es: '112', it: '118', be: '112',
-  ch: '144', pt: '112', nl: '112', au: '000',
-  default: '112',
+// Emergency numbers by country code
+const EMERGENCY_BY_COUNTRY: Record<string, string> = {
+  FR: '15', GB: '999', US: '911', CA: '911',
+  AU: '000', NZ: '111', JP: '119', IN: '112',
+  // Reste du monde → 112 (standard international)
 }
 
-function getEmergencyNumber(): string {
-  const lang = navigator.language?.toLowerCase() || ''
-  const country = lang.split('-')[1] || lang.split('-')[0] || 'default'
-  return EMERGENCY_NUMBERS[country] ?? EMERGENCY_NUMBERS.default
+// Détection par fuseau horaire (instantané, fonctionne hors ligne)
+function getEmergencyFromTimezone(): string {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if (tz === 'Europe/London' || tz === 'Europe/Belfast' || tz === 'Europe/Dublin') return '999'
+    if (tz.startsWith('America/')) return '911'
+    if (tz.startsWith('Australia/')) return '000'
+    if (tz.startsWith('Pacific/Auckland')) return '111'
+    // Toute l'Europe continentale + Afrique + Asie → 112
+    return '112'
+  } catch {
+    return '112'
+  }
+}
+
+// Upgrade via reverse geocoding si coordonnées disponibles
+async function getEmergencyFromCoords(lat: number, lon: number): Promise<string> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
+      { headers: { 'Accept-Language': 'en' }, signal: AbortSignal.timeout(3000) }
+    )
+    const data = await res.json()
+    const cc: string = (data.address?.country_code || '').toUpperCase()
+    return EMERGENCY_BY_COUNTRY[cc] ?? '112'
+  } catch {
+    return getEmergencyFromTimezone()
+  }
 }
 
 // Translations
@@ -214,6 +237,7 @@ export default function PublicPage() {
   const [loading, setLoading] = useState(true)
   const [isOffline, setIsOffline] = useState(false)
   const [lang, setLang] = useState<LangKey>('fr')
+  const [emergencyNumber, setEmergencyNumber] = useState<string>(() => getEmergencyFromTimezone())
   const [time, setTime] = useState(formatTime())
   const [alertSent, setAlertSent] = useState(false)
   const [alertSending, setAlertSending] = useState(false)
@@ -243,6 +267,11 @@ export default function PublicPage() {
           )
         })
         await geoPromise
+        // Upgrade numéro d'urgence avec géoloc précise
+        if (geoRef.current) {
+          getEmergencyFromCoords(geoRef.current.lat, geoRef.current.lon)
+            .then(n => setEmergencyNumber(n))
+        }
       }
 
       if (navigator.onLine) {
@@ -347,7 +376,6 @@ export default function PublicPage() {
     try { habilitations = JSON.parse((fiche as Fiche & { habilitations?: string }).habilitations || '[]') } catch {}
   }
 
-  const emergencyNumber = getEmergencyNumber()
   const badgeText = isPet ? t.animal : isKids ? t.enfant : isWork ? t.chantier : t.urgence
   const initial = isPet ? '🐾' : (fiche.nom_complet || nomProfil || '?').charAt(0).toUpperCase()
   const bodyBg = gamme === 'Care' ? '#FFF5F5' : gamme === 'Kids' ? '#F5F0FF' : gamme === 'Sport' ? '#F0FDF4' : gamme === 'Pet' ? '#FFF7ED' : '#EFF6FF'
