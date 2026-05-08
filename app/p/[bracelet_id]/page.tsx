@@ -387,15 +387,6 @@ export default function PublicPage() {
       )}
       <div className="pub-phone">
 
-        {/* Status bar */}
-        <div className="pub-statusbar" style={{ background: `linear-gradient(160deg, ${gammeColorDark}, ${gammeColor})` }}>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{time}</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <svg width="14" height="10" viewBox="0 0 14 10" fill="white" opacity="0.8"><rect x="0" y="5" width="2" height="5" rx="0.5"/><rect x="3" y="3" width="2" height="7" rx="0.5"/><rect x="6" y="1" width="2" height="9" rx="0.5"/><rect x="9" y="0" width="2" height="10" rx="0.5"/></svg>
-            <svg width="20" height="10" viewBox="0 0 20 10" fill="none" opacity="0.8"><rect x="0" y="1" width="17" height="8" rx="2" stroke="white" strokeWidth="1.2"/><rect x="17.5" y="3" width="2" height="4" rx="1" fill="white"/><rect x="1" y="2" width="12" height="6" rx="1.2" fill="white"/></svg>
-          </div>
-        </div>
-
         {/* Lang bar */}
         <div className="pub-langbar" style={{ background: `linear-gradient(160deg, ${gammeColorDark}, ${gammeColor})` }}>
           <span className="pub-globe">🌐</span>
