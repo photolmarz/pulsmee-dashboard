@@ -527,45 +527,82 @@ export default function FichePage() {
           {/* ── NFC ── */}
           {ficheRemplie && bracelet?.bracelet_id && (
             <>
-            {!bracelet.puce_programmee && (
-              <div style={{ background: '#FFF7ED', border: '1.5px solid #F97316', borderRadius: 12, padding: 12, marginBottom: 12 }}>
-                <div style={{ fontWeight: 800, fontSize: 13, color: '#C2410C', marginBottom: 4 }}>⚠️ Reprogrammation nécessaire</div>
-                <div style={{ fontSize: 12, color: '#92400E' }}>Votre fiche a été modifiée. Reprogrammez la puce NFC pour que le bracelet fonctionne hors ligne.</div>
-              </div>
-            )}
-            <div className="nfc-block" style={{ borderColor: `${gammeColor}30` }}>
-              <div className="nfc-title">
-                📡 {bracelet?.puce_programmee ? 'Bracelet programmé ✅' : 'Programmer ma puce NFC'}
-              </div>
-              <p className="nfc-desc">Pour que votre bracelet fonctionne <strong>sans réseau</strong>, programmez la puce NFC.</p>
-              <div className="nfc-step">
-                <div className="nfc-step-num" style={{ background: gammeColor }}>1</div>
-                <div><div className="nfc-step-title">Sauvegardez votre fiche</div><div className="nfc-step-sub">Vos données sont enregistrées en ligne</div></div>
-              </div>
-              <div className="nfc-step">
-                <div className="nfc-step-num" style={{ background: gammeColor }}>2</div>
-                <div><div className="nfc-step-title">Approchez votre bracelet du téléphone</div><div className="nfc-step-sub">Les données sont écrites dans la puce en 2 secondes</div></div>
-              </div>
-              <button className="btn-nfc" style={{ background: gammeColor }} onClick={programNFC} disabled={nfcStatus === 'waiting'}>
-                {nfcStatus === 'waiting' ? <><span className="spinner" /> En attente...</> : <>📡 Programmer ma puce maintenant</>}
-              </button>
-              <div className="iphone-block">
-                <span className="iphone-ico">🍎</span>
-                <div>
-                  <div className="iphone-title">Utilisateurs iPhone</div>
-                  <p className="iphone-desc">Téléchargez votre fiche et programmez avec <strong>NFC Tools</strong>.</p>
-                  <div className="iphone-btns">
-                    <button className="btn-iphone" onClick={handleDownloadVCard}>⬇️ Télécharger ma fiche (.vcf)</button>
-                    <a href="nfctools://" className="btn-iphone">📲 Ouvrir NFC Tools</a>
-                  </div>
-                </div>
-              </div>
-              {bracelet.puce_programmee && bracelet.derniere_programmation && (
-                <div style={{ textAlign: 'center', marginTop: 12, fontSize: 11, color: 'var(--stone-dark)' }}>
-                  ✅ Dernière programmation : {new Date(bracelet.derniere_programmation).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+              {/* Warning reprogrammation — séparé */}
+              {!bracelet.puce_programmee && (
+                <div style={{ background: '#FFF7ED', border: '1.5px solid #F97316', borderRadius: 16, padding: 14, marginBottom: 12 }}>
+                  <div style={{ fontWeight: 800, fontSize: 13, color: '#C2410C', marginBottom: 4 }}>⚠️ Reprogrammation nécessaire</div>
+                  <div style={{ fontSize: 12, color: '#92400E', lineHeight: 1.5 }}>Votre fiche a été modifiée. Reprogrammez la puce NFC pour que le bracelet fonctionne hors ligne.</div>
                 </div>
               )}
-            </div>
+
+              {/* Bloc Android */}
+              <div className="nfc-block" style={{ borderColor: `${gammeColor}30` }}>
+                <div className="nfc-title">🤖 Android — Programmer via Chrome</div>
+                <p className="nfc-desc">Programmez directement depuis Chrome, <strong>sans application</strong>.</p>
+                {[
+                  { n: 1, title: 'Sauvegardez votre fiche', sub: 'Utilisez le bouton "Sauvegarder" ci-dessus' },
+                  { n: 2, title: 'Ouvrez cette page dans Chrome', sub: 'Web NFC fonctionne uniquement sur Chrome Android' },
+                  { n: 3, title: 'Appuyez sur le bouton ci-dessous', sub: 'Puis approchez le bracelet de votre téléphone' },
+                ].map(s => (
+                  <div key={s.n} className="nfc-step">
+                    <div className="nfc-step-num" style={{ background: gammeColor }}>{s.n}</div>
+                    <div><div className="nfc-step-title">{s.title}</div><div className="nfc-step-sub">{s.sub}</div></div>
+                  </div>
+                ))}
+                <button className="btn-nfc" style={{ background: gammeColor }} onClick={programNFC} disabled={nfcStatus === 'waiting'}>
+                  {nfcStatus === 'waiting' ? <><span className="spinner" /> En attente du bracelet...</> : <>📡 Programmer ma puce maintenant</>}
+                </button>
+                {bracelet.puce_programmee && bracelet.derniere_programmation && (
+                  <div style={{ textAlign: 'center', marginTop: 10, fontSize: 11, color: 'var(--stone-dark)' }}>
+                    ✅ Dernière programmation : {new Date(bracelet.derniere_programmation).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </div>
+                )}
+              </div>
+
+              {/* Bloc iPhone */}
+              <div className="nfc-block" style={{ borderColor: '#E5E7EB', marginTop: 12 }}>
+                <div className="nfc-title">🍎 iPhone — Programmer via NFC Tools</div>
+                <p className="nfc-desc">Programmez avec l'application gratuite <strong>NFC Tools</strong>.</p>
+                {[
+                  { n: 1, title: 'Sauvegardez votre fiche', sub: 'Utilisez le bouton "Sauvegarder" ci-dessus' },
+                  { n: 2, title: 'Téléchargez NFC Tools', sub: 'Application gratuite sur l\'App Store' },
+                  { n: 3, title: 'Copiez l\'URL de votre bracelet', sub: 'Bouton "Copier l\'URL" ci-dessous' },
+                  { n: 4, title: 'Dans NFC Tools : Write → + → URL', sub: 'Collez l\'URL, appuyez OK' },
+                  { n: 5, title: 'Approchez le bracelet du téléphone', sub: 'Maintenez-le immobile 2-3 secondes' },
+                ].map(s => (
+                  <div key={s.n} className="nfc-step">
+                    <div className="nfc-step-num" style={{ background: '#6B7280' }}>{s.n}</div>
+                    <div><div className="nfc-step-title">{s.title}</div><div className="nfc-step-sub">{s.sub}</div></div>
+                  </div>
+                ))}
+                <div className="iphone-btns" style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <button className="btn-iphone" style={{ background: gammeColor, color: 'white', border: 'none' }} onClick={async () => {
+                    const encoded = encodeFicheForNFC(fiche!)
+                    const nfcUrl = `https://pulsmee.fr/p/${bracelet.bracelet_id}?v=${encoded}`
+                    try {
+                      await navigator.clipboard.writeText(nfcUrl)
+                      showToast('📋 URL copiée ! Ouvre NFC Tools et colle-la.')
+                    } catch {
+                      showToast('❌ Impossible de copier — copiez manuellement : pulsmee.fr/p/' + bracelet.bracelet_id)
+                    }
+                  }}>
+                    📋 Copier l'URL du bracelet
+                  </button>
+                  <button className="btn-iphone" onClick={() => {
+                    // Iframe trick pour éviter l'erreur Safari
+                    const iframe = document.createElement('iframe')
+                    iframe.style.cssText = 'display:none;width:0;height:0;'
+                    iframe.src = 'nfctools://'
+                    document.body.appendChild(iframe)
+                    setTimeout(() => { try { document.body.removeChild(iframe) } catch {} }, 1000)
+                    setTimeout(() => {
+                      window.location.href = 'https://apps.apple.com/app/nfc-tools/id1252962749'
+                    }, 2500)
+                  }}>
+                    📲 Ouvrir NFC Tools (ou télécharger)
+                  </button>
+                </div>
+              </div>
             </>
           )}
 

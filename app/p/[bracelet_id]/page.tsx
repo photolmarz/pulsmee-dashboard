@@ -8,23 +8,14 @@ import type { Fiche } from '@/types'
 type Habilitation = { nom: string; statut: 'valid' | 'soon' | 'expired' }
 
 // Emergency numbers by country
-const EMERGENCY_NUMBERS: Record<string, { number: string; label: string }> = {
-  fr: { number: '15', label: 'Appeler le 15 (SAMU)' },
-  gb: { number: '999', label: 'Call 999' },
-  us: { number: '911', label: 'Call 911' },
-  ca: { number: '911', label: 'Call 911' },
-  de: { number: '112', label: 'Notruf 112' },
-  es: { number: '112', label: 'Llamar al 112' },
-  it: { number: '118', label: 'Chiama il 118' },
-  be: { number: '112', label: 'Appeler le 112' },
-  ch: { number: '144', label: 'Appeler le 144' },
-  pt: { number: '112', label: 'Ligar 112' },
-  nl: { number: '112', label: 'Bel 112' },
-  au: { number: '000', label: 'Call 000' },
-  default: { number: '112', label: 'Appeler le 112' },
+const EMERGENCY_NUMBERS: Record<string, string> = {
+  fr: '15', gb: '999', us: '911', ca: '911',
+  de: '112', es: '112', it: '118', be: '112',
+  ch: '144', pt: '112', nl: '112', au: '000',
+  default: '112',
 }
 
-function getEmergencyInfo() {
+function getEmergencyNumber(): string {
   const lang = navigator.language?.toLowerCase() || ''
   const country = lang.split('-')[1] || lang.split('-')[0] || 'default'
   return EMERGENCY_NUMBERS[country] ?? EMERGENCY_NUMBERS.default
@@ -60,6 +51,7 @@ const TRANSLATIONS = {
     espece: 'Espèce',
     poste: 'Poste',
     contact_rh: 'Contact RH',
+    appeler: (n: string) => `🚨 Appeler le ${n}`,
   },
   en: {
     urgence: '🚨 Medical Emergency',
@@ -89,6 +81,7 @@ const TRANSLATIONS = {
     espece: 'Species',
     poste: 'Position',
     contact_rh: 'HR Contact',
+    appeler: (n: string) => `🚨 Call ${n}`,
   },
   es: {
     urgence: '🚨 Emergencia médica',
@@ -118,6 +111,7 @@ const TRANSLATIONS = {
     espece: 'Especie',
     poste: 'Puesto',
     contact_rh: 'Contacto RR.HH.',
+    appeler: (n: string) => `🚨 Llamar al ${n}`,
   },
   de: {
     urgence: '🚨 Medizinischer Notfall',
@@ -147,6 +141,7 @@ const TRANSLATIONS = {
     espece: 'Tierart',
     poste: 'Position',
     contact_rh: 'HR-Kontakt',
+    appeler: (n: string) => `🚨 Notruf ${n}`,
   },
   it: {
     urgence: '🚨 Emergenza medica',
@@ -176,6 +171,7 @@ const TRANSLATIONS = {
     espece: 'Specie',
     poste: 'Posizione',
     contact_rh: 'Contatto HR',
+    appeler: (n: string) => `🚨 Chiama il ${n}`,
   },
 }
 
@@ -351,7 +347,7 @@ export default function PublicPage() {
     try { habilitations = JSON.parse((fiche as Fiche & { habilitations?: string }).habilitations || '[]') } catch {}
   }
 
-  const emergency = getEmergencyInfo()
+  const emergencyNumber = getEmergencyNumber()
   const badgeText = isPet ? t.animal : isKids ? t.enfant : isWork ? t.chantier : t.urgence
   const initial = isPet ? '🐾' : (fiche.nom_complet || nomProfil || '?').charAt(0).toUpperCase()
   const bodyBg = gamme === 'Care' ? '#FFF5F5' : gamme === 'Kids' ? '#F5F0FF' : gamme === 'Sport' ? '#F0FDF4' : gamme === 'Pet' ? '#FFF7ED' : '#EFF6FF'
@@ -407,9 +403,9 @@ export default function PublicPage() {
             )}
           </div>
 
-          {/* Emergency button */}
-          <a href={`tel:${emergency.number}`} className="pub-emergency-btn" style={{ color: gammeColor }}>
-            🚨 {emergency.label}
+          {/* Emergency button — label changes with language */}
+          <a href={`tel:${emergencyNumber}`} className="pub-emergency-btn" style={{ color: gammeColor }}>
+            {t.appeler(emergencyNumber)}
           </a>
         </div>
 
