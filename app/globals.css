@@ -654,6 +654,23 @@ input[type="date"].fi-input {
 
 .fi-textarea:focus { border-color: var(--pulse); background: var(--warm-white); }
 
+.nfc-counter {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  margin-top: 2px;
+  display: inline-block;
+}
+.nfc-counter-warn {
+  color: #92400e;
+  background: #fef3c7;
+}
+.nfc-counter-over {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
 .fi-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
 /* ═══════════════════════════════════
@@ -1609,13 +1626,46 @@ input[type="date"].fi-input {
 }
 
 /* Offline banner */
-.pub-offline-banner {
-  background: #92400e;
-  color: #fef3c7;
-  text-align: center;
-  padding: 8px 16px;
+.pub-status-badge {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border-radius: 99px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
+  z-index: 999;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+  animation: badge-in 0.3s ease;
+  white-space: nowrap;
+}
+.pub-status-offline {
+  background: #1c1917;
+  color: #fef3c7;
+}
+.pub-status-online {
+  background: #14532d;
+  color: #dcfce7;
+}
+.pub-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.pub-status-offline .pub-status-dot { background: #f97316; }
+.pub-status-online .pub-status-dot { background: #4ade80; animation: pulse-dot 1s ease infinite; }
+@keyframes badge-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 
 /* Not found */

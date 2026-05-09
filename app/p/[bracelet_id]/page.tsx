@@ -236,6 +236,7 @@ export default function PublicPage() {
   const [nomProfil, setNomProfil] = useState('')
   const [loading, setLoading] = useState(true)
   const [isOffline, setIsOffline] = useState(false)
+  const [justWentOnline, setJustWentOnline] = useState(false)
   const [lang, setLang] = useState<LangKey>('fr')
   const [emergencyNumber, setEmergencyNumber] = useState<string>(() => getEmergencyFromTimezone())
   const [time, setTime] = useState(formatTime())
@@ -315,6 +316,30 @@ export default function PublicPage() {
     load()
   }, [braceletId, encodedData])
 
+  // Dès que le réseau revient, bascule vers la fiche en ligne
+  useEffect(() => {
+    if (!isOffline) return
+    async function upgradeToOnline() {
+      try {
+        const supabase = createClient()
+        const [{ data: ficheData }, { data: braceletData }] = await Promise.all([
+          supabase.from('fiches').select('*').eq('bracelet_id', braceletId).maybeSingle(),
+          supabase.from('bracelets').select('nom_profil, gamme').eq('bracelet_id', braceletId).maybeSingle(),
+        ])
+        if (ficheData) {
+          setFiche(ficheData)
+          setGamme(braceletData?.gamme || 'Care')
+          setNomProfil(braceletData?.nom_profil || '')
+          setIsOffline(false)
+          setJustWentOnline(true)
+          setTimeout(() => setJustWentOnline(false), 3000)
+        }
+      } catch {}
+    }
+    window.addEventListener('online', upgradeToOnline)
+    return () => window.removeEventListener('online', upgradeToOnline)
+  }, [isOffline, braceletId])
+
   async function handleAlertContacts() {
     setAlertSending(true)
     try {
@@ -382,8 +407,11 @@ export default function PublicPage() {
 
   return (
     <div className="pub-wrap">
-      {isOffline && (
-        <div className="pub-offline-banner">{t.hors_ligne}</div>
+      {(isOffline || justWentOnline) && (
+        <div className={`pub-status-badge ${isOffline ? 'pub-status-offline' : 'pub-status-online'}`}>
+          <span className="pub-status-dot" />
+          {isOffline ? t.offline : t.en_ligne}
+        </div>
       )}
       <div className="pub-phone">
 

@@ -10,6 +10,20 @@ import type { Bracelet, Fiche } from '@/types'
 
 const GROUPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
 
+// Compteur NFC — avertit quand on dépasse le seuil hors-ligne
+function NfcCounter({ value, limit }: { value: string; limit: number }) {
+  const len = (value || '').length
+  if (len <= limit * 0.75) return null
+  const over = len > limit
+  return (
+    <div className={`nfc-counter ${over ? 'nfc-counter-over' : 'nfc-counter-warn'}`}>
+      {over
+        ? `⚠️ Tronqué hors ligne après ${limit} car. (${len}/${limit})`
+        : `📡 ${len}/${limit} — proche de la limite hors ligne`}
+    </div>
+  )
+}
+
 type Habilitation = { nom: string; statut: 'valid' | 'soon' | 'expired' }
 
 const STATUT_LABELS = {
@@ -426,15 +440,18 @@ export default function FichePage() {
               <div className="fi-field">
                 <label className="fi-label">⚠️ Allergies</label>
                 <input type="text" className="fi-input" value={fiche?.allergies ?? ''} onChange={e => update('allergies', e.target.value)} placeholder={isPet ? 'Produits, médicaments...' : 'Pénicilline, Aspirine...'} />
+                <NfcCounter value={fiche?.allergies ?? ''} limit={150} />
               </div>
               <div className="fi-field">
                 <label className="fi-label">{isPet ? 'Traitements vétérinaires en cours' : 'Traitements en cours'}</label>
                 <textarea className="fi-textarea" value={fiche?.traitements ?? ''} onChange={e => update('traitements', e.target.value)} placeholder={isPet ? 'Antiparasitaires, vaccins...' : 'Rivaroxaban 20mg/j...'} />
+                <NfcCounter value={fiche?.traitements ?? ''} limit={150} />
               </div>
               {!isPet && !isWork && (
                 <div className="fi-field">
                   <label className="fi-label">{isKids ? 'Pathologies / TSA / Autisme' : 'Pathologies chroniques'}</label>
                   <input type="text" className="fi-input" value={fiche?.pathologies ?? ''} onChange={e => update('pathologies', e.target.value)} placeholder={isKids ? 'Autisme, Épilepsie...' : 'Diabète, Insuffisance cardiaque...'} />
+                  <NfcCounter value={fiche?.pathologies ?? ''} limit={150} />
                 </div>
               )}
               <div className="fi-row">
@@ -461,6 +478,7 @@ export default function FichePage() {
                 <div className="fi-field">
                   <label className="fi-label">Instructions pour les secours / témoins</label>
                   <textarea className="fi-textarea" style={{ minHeight: 120 }} value={fiche?.guide_autisme ?? ''} onChange={e => update('guide_autisme', e.target.value)} placeholder="Cet enfant est autiste..." />
+                  <NfcCounter value={fiche?.guide_autisme ?? ''} limit={200} />
                 </div>
               </div>
             </div>
@@ -520,6 +538,7 @@ export default function FichePage() {
               <div className="fi-field">
                 <label className="fi-label">Message libre</label>
                 <textarea className="fi-textarea" style={{ minHeight: 90 }} value={fiche?.consignes ?? ''} onChange={e => update('consignes', e.target.value)} placeholder={isPet ? 'Animal craintif, ne pas approcher brutalement...' : isWork ? 'En cas d\'accident sur chantier, contacter immédiatement...' : 'Ne pas laisser seul. Contacter l\'épouse avant toute décision médicale...'} />
+                <NfcCounter value={fiche?.consignes ?? ''} limit={200} />
               </div>
             </div>
           </div>
