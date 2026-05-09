@@ -40,6 +40,10 @@ body {
   justify-content: space-between;
   border-bottom: 1px solid #EDE8E1;
   box-shadow: 0 1px 0 rgba(0,0,0,0.04);
+  transition: transform 0.25s ease;
+}
+.app-header-hidden {
+  transform: translateY(-100%);
 }
 
 .app-logo {
@@ -384,6 +388,31 @@ a.d-item { text-decoration: none; color: var(--ink); }
 }
 .stat-card-btn:hover { background: var(--stone); }
 .stat-card-active { background: var(--stone); }
+
+.scans-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 280px;
+  max-height: 360px;
+  overflow-y: auto;
+  background: var(--warm-white);
+  border: 1px solid var(--stone);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  z-index: 200;
+  animation: badge-in 0.2s ease;
+}
+.scans-dropdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--stone);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+}
 
 .stat-card::before {
   content: '';

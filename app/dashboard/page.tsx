@@ -19,6 +19,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [showActivation, setShowActivation] = useState(false)
   const [showScansPanel, setShowScansPanel] = useState(false)
+  const [headerHidden, setHeaderHidden] = useState(false)
   const [activationCode, setActivationCode] = useState('')
   const [nomProfil, setNomProfil] = useState('')
   const [activating, setActivating] = useState(false)
@@ -109,6 +110,18 @@ export default function DashboardPage() {
     }
   }
 
+  // Cache le header au scroll vers le bas
+  useEffect(() => {
+    let lastY = window.scrollY
+    function onScroll() {
+      const y = window.scrollY
+      setHeaderHidden(y > lastY && y > 60)
+      lastY = y
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
   const prenom = (user?.user_metadata?.prenom as string) || user?.email?.split('@')[0] || 'vous'
 
   const scansCeMois = scans.filter(s => {
@@ -127,7 +140,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <header className="app-header">
+      <header className={`app-header${headerHidden ? ' app-header-hidden' : ''}`}>
         <a className="app-logo" href="https://pulsmee.fr" target="_blank" rel="noopener noreferrer">
           <Logo size={20} />
           <span className="app-logo-text">Puls<span>mee</span></span>
@@ -190,11 +203,46 @@ export default function DashboardPage() {
               <div className="s-val" style={{ color: 'var(--pulse)' }}>{bracelets.length}</div>
               <div className="s-sub">Sur ce compte</div>
             </div>
-            <button className={`stat-card stat-card-btn${showScansPanel ? ' stat-card-active' : ''}`} onClick={() => setShowScansPanel(v => !v)}>
-              <div className="s-label">Scans {showScansPanel ? '▲' : '▼'}</div>
-              <div className="s-val" style={{ color: '#3B82F6' }}>{scansCeMois}</div>
-              <div className="s-sub">Ce mois</div>
-            </button>
+            <div style={{ position: 'relative' }}>
+              <button className={`stat-card stat-card-btn${showScansPanel ? ' stat-card-active' : ''}`} onClick={() => setShowScansPanel(v => !v)}>
+                <div className="s-label">Scans {showScansPanel ? '▲' : '▼'}</div>
+                <div className="s-val" style={{ color: '#3B82F6' }}>{scansCeMois}</div>
+                <div className="s-sub">Ce mois</div>
+              </button>
+
+              {showScansPanel && (
+                <div className="scans-dropdown">
+                  <div className="scans-dropdown-header">
+                    <span>📡 Historique</span>
+                    <span>{scans.length} scan{scans.length > 1 ? 's' : ''}</span>
+                  </div>
+                  {scans.length === 0 ? (
+                    <div className="bc-scans-empty">Aucun scan enregistré</div>
+                  ) : scans.map((scan, i) => {
+                    const br = bracelets.find(b => b.bracelet_id === scan.bracelet_id)
+                    const mapsUrl = (scan.latitude != null && scan.longitude != null)
+                      ? `https://www.google.com/maps?q=${scan.latitude},${scan.longitude}`
+                      : null
+                    const scanDate = new Date(scan.scanned_at).toLocaleString('fr-FR', {
+                      day: '2-digit', month: '2-digit', year: 'numeric',
+                      hour: '2-digit', minute: '2-digit',
+                    })
+                    return (
+                      <div key={scan.id} className={`bc-scan-row${i > 0 ? ' bc-scan-row-border' : ''}`}>
+                        <div className="bc-scan-dot" />
+                        <div className="bc-scan-info">
+                          <span className="bc-scan-date">{scanDate}</span>
+                          {br && <span className="bc-scan-bracelet">{br.nom_profil}</span>}
+                        </div>
+                        {mapsUrl
+                          ? <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="bc-scan-loc">📍</a>
+                          : <span className="bc-scan-rel">{formatRelativeTime(scan.scanned_at)}</span>}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
             <div className="stat-card">
               <div className="s-label">Dernière activité</div>
               <div className="s-val" style={{ fontSize: 13, fontFamily: 'inherit', color: 'var(--ink-mid)' }}>
@@ -203,45 +251,6 @@ export default function DashboardPage() {
               <div className="s-sub">Dernier scan</div>
             </div>
           </div>
-
-          {/* Panneau scans */}
-          {showScansPanel && (
-            <div className="card" style={{ marginTop: 12 }}>
-              <div className="card-head">
-                <div className="card-title">📡 Historique des scans</div>
-                <span style={{ fontSize: 12, color: 'var(--stone-dark)' }}>{scans.length} au total</span>
-              </div>
-              <div className="card-body" style={{ padding: 0 }}>
-                {scans.length === 0 ? (
-                  <div className="bc-scans-empty">Aucun scan enregistré pour le moment</div>
-                ) : scans.map((scan, i) => {
-                  const br = bracelets.find(b => b.bracelet_id === scan.bracelet_id)
-                  const mapsUrl = (scan.latitude != null && scan.longitude != null)
-                    ? `https://www.google.com/maps?q=${scan.latitude},${scan.longitude}`
-                    : null
-                  const scanDate = new Date(scan.scanned_at).toLocaleString('fr-FR', {
-                    day: '2-digit', month: '2-digit', year: 'numeric',
-                    hour: '2-digit', minute: '2-digit',
-                  })
-                  return (
-                    <div key={scan.id} className={`bc-scan-row${i > 0 ? ' bc-scan-row-border' : ''}`}>
-                      <div className="bc-scan-dot" />
-                      <div className="bc-scan-info">
-                        <div>
-                          <span className="bc-scan-date">{scanDate}</span>
-                          {br && <span className="bc-scan-bracelet"> · {br.nom_profil}</span>}
-                        </div>
-                        {mapsUrl && (
-                          <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="bc-scan-loc">📍 Position</a>
-                        )}
-                      </div>
-                      <span className="bc-scan-rel">{formatRelativeTime(scan.scanned_at)}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
 
           {/* Liste des bracelets */}
           {bracelets.length === 0 ? (
