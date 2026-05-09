@@ -104,7 +104,7 @@ const TRANSLATIONS = {
     espece: 'Species',
     poste: 'Position',
     contact_rh: 'HR Contact',
-    appeler: (n: string) => `🚨 Call ${n}`,
+    appeler: (n: string) => `🚨 Call emergency services (${n})`,
   },
   es: {
     urgence: '🚨 Emergencia médica',
@@ -134,7 +134,7 @@ const TRANSLATIONS = {
     espece: 'Especie',
     poste: 'Puesto',
     contact_rh: 'Contacto RR.HH.',
-    appeler: (n: string) => `🚨 Llamar al ${n}`,
+    appeler: (n: string) => `🚨 Llamar a emergencias (${n})`,
   },
   de: {
     urgence: '🚨 Medizinischer Notfall',
@@ -164,7 +164,7 @@ const TRANSLATIONS = {
     espece: 'Tierart',
     poste: 'Position',
     contact_rh: 'HR-Kontakt',
-    appeler: (n: string) => `🚨 Notruf ${n}`,
+    appeler: (n: string) => `🚨 Notruf — Rettungsdienst (${n})`,
   },
   it: {
     urgence: '🚨 Emergenza medica',
@@ -194,7 +194,7 @@ const TRANSLATIONS = {
     espece: 'Specie',
     poste: 'Posizione',
     contact_rh: 'Contatto HR',
-    appeler: (n: string) => `🚨 Chiama il ${n}`,
+    appeler: (n: string) => `🚨 Chiamare i soccorsi (${n})`,
   },
 }
 
