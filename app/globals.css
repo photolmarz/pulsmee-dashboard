@@ -40,7 +40,7 @@ body {
   justify-content: space-between;
   border-bottom: 1px solid #EDE8E1;
   box-shadow: 0 1px 0 rgba(0,0,0,0.04);
-  transition: transform 0.25s ease;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .app-header-hidden {
   transform: translateY(-100%);
@@ -390,28 +390,44 @@ a.d-item { text-decoration: none; color: var(--ink); }
 .stat-card-active { background: var(--stone); }
 
 .scans-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  min-width: 280px;
-  max-height: 360px;
-  overflow-y: auto;
   background: var(--warm-white);
   border: 1px solid var(--stone);
   border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
-  z-index: 200;
-  animation: badge-in 0.2s ease;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.10);
+  margin-bottom: 16px;
+  overflow: hidden;
+  animation: scans-slide 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: top center;
+}
+.scans-dropdown-arrow {
+  width: 12px;
+  height: 12px;
+  background: var(--warm-white);
+  border-top: 1px solid var(--stone);
+  border-left: 1px solid var(--stone);
+  transform: rotate(45deg);
+  margin: -6px auto 0;
+  position: relative;
+  z-index: 1;
+  margin-left: calc(33% + 8px);
 }
 .scans-dropdown-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 16px;
+  padding: 12px 16px 10px;
   border-bottom: 1px solid var(--stone);
   font-size: 12px;
   font-weight: 700;
   color: var(--ink);
+}
+.scans-dropdown-body {
+  max-height: 320px;
+  overflow-y: auto;
+}
+@keyframes scans-slide {
+  from { opacity: 0; transform: scaleY(0.92) translateY(-6px); }
+  to   { opacity: 1; transform: scaleY(1) translateY(0); }
 }
 
 .stat-card::before {

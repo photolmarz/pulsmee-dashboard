@@ -203,46 +203,11 @@ export default function DashboardPage() {
               <div className="s-val" style={{ color: 'var(--pulse)' }}>{bracelets.length}</div>
               <div className="s-sub">Sur ce compte</div>
             </div>
-            <div style={{ position: 'relative' }}>
-              <button className={`stat-card stat-card-btn${showScansPanel ? ' stat-card-active' : ''}`} onClick={() => setShowScansPanel(v => !v)}>
-                <div className="s-label">Scans {showScansPanel ? '▲' : '▼'}</div>
-                <div className="s-val" style={{ color: '#3B82F6' }}>{scansCeMois}</div>
-                <div className="s-sub">Ce mois</div>
-              </button>
-
-              {showScansPanel && (
-                <div className="scans-dropdown">
-                  <div className="scans-dropdown-header">
-                    <span>📡 Historique</span>
-                    <span>{scans.length} scan{scans.length > 1 ? 's' : ''}</span>
-                  </div>
-                  {scans.length === 0 ? (
-                    <div className="bc-scans-empty">Aucun scan enregistré</div>
-                  ) : scans.map((scan, i) => {
-                    const br = bracelets.find(b => b.bracelet_id === scan.bracelet_id)
-                    const mapsUrl = (scan.latitude != null && scan.longitude != null)
-                      ? `https://www.google.com/maps?q=${scan.latitude},${scan.longitude}`
-                      : null
-                    const scanDate = new Date(scan.scanned_at).toLocaleString('fr-FR', {
-                      day: '2-digit', month: '2-digit', year: 'numeric',
-                      hour: '2-digit', minute: '2-digit',
-                    })
-                    return (
-                      <div key={scan.id} className={`bc-scan-row${i > 0 ? ' bc-scan-row-border' : ''}`}>
-                        <div className="bc-scan-dot" />
-                        <div className="bc-scan-info">
-                          <span className="bc-scan-date">{scanDate}</span>
-                          {br && <span className="bc-scan-bracelet">{br.nom_profil}</span>}
-                        </div>
-                        {mapsUrl
-                          ? <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="bc-scan-loc">📍</a>
-                          : <span className="bc-scan-rel">{formatRelativeTime(scan.scanned_at)}</span>}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+            <button className={`stat-card stat-card-btn${showScansPanel ? ' stat-card-active' : ''}`} onClick={() => setShowScansPanel(v => !v)}>
+              <div className="s-label">Scans {showScansPanel ? '▲' : '▼'}</div>
+              <div className="s-val" style={{ color: '#3B82F6' }}>{scansCeMois}</div>
+              <div className="s-sub">Ce mois</div>
+            </button>
             <div className="stat-card">
               <div className="s-label">Dernière activité</div>
               <div className="s-val" style={{ fontSize: 13, fontFamily: 'inherit', color: 'var(--ink-mid)' }}>
@@ -251,6 +216,43 @@ export default function DashboardPage() {
               <div className="s-sub">Dernier scan</div>
             </div>
           </div>
+
+          {/* Dropdown scans */}
+          {showScansPanel && (
+            <div className="scans-dropdown">
+              <div className="scans-dropdown-arrow" />
+              <div className="scans-dropdown-header">
+                <span>📡 Historique des scans</span>
+                <span>{scans.length} au total</span>
+              </div>
+              <div className="scans-dropdown-body">
+                {scans.length === 0 ? (
+                  <div className="bc-scans-empty">Aucun scan enregistré pour le moment</div>
+                ) : scans.map((scan, i) => {
+                  const br = bracelets.find(b => b.bracelet_id === scan.bracelet_id)
+                  const mapsUrl = (scan.latitude != null && scan.longitude != null)
+                    ? `https://www.google.com/maps?q=${scan.latitude},${scan.longitude}`
+                    : null
+                  const scanDate = new Date(scan.scanned_at).toLocaleString('fr-FR', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit',
+                  })
+                  return (
+                    <div key={scan.id} className={`bc-scan-row${i > 0 ? ' bc-scan-row-border' : ''}`}>
+                      <div className="bc-scan-dot" />
+                      <div className="bc-scan-info">
+                        <span className="bc-scan-date">{scanDate}</span>
+                        {br && <span className="bc-scan-bracelet">{br.nom_profil}</span>}
+                      </div>
+                      {mapsUrl
+                        ? <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="bc-scan-loc">📍 Position</a>
+                        : <span className="bc-scan-rel">{formatRelativeTime(scan.scanned_at)}</span>}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Liste des bracelets */}
           {bracelets.length === 0 ? (
