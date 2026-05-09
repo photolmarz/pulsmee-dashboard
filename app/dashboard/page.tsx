@@ -33,6 +33,8 @@ export default function DashboardPage() {
   }, [])
 
   useEffect(() => {
+    let braceletIds: string[] = []
+
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/inscription'); return }
@@ -46,19 +48,34 @@ export default function DashboardPage() {
       setBracelets(b ?? [])
 
       if (b && b.length > 0) {
-        const ids = b.map(br => br.bracelet_id)
-        const { data: s } = await supabase
-          .from('scans')
-          .select('*')
-          .in('bracelet_id', ids)
-          .order('scanned_at', { ascending: false })
-          .limit(20)
-        setScans(s ?? [])
+        braceletIds = b.map(br => br.bracelet_id)
+        await refreshScans(braceletIds)
       }
 
       setLoading(false)
     }
+
+    async function refreshScans(ids: string[]) {
+      if (ids.length === 0) return
+      const { data: s } = await supabase
+        .from('scans')
+        .select('*')
+        .in('bracelet_id', ids)
+        .order('scanned_at', { ascending: false })
+        .limit(20)
+      setScans(s ?? [])
+    }
+
+    // Rafraîchit les scans quand l'utilisateur revient sur l'onglet
+    function onVisible() {
+      if (document.visibilityState === 'visible' && braceletIds.length > 0) {
+        refreshScans(braceletIds)
+      }
+    }
+
     load()
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   }, [router, supabase])
 
   async function handleActivation(e: React.FormEvent) {
