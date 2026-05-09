@@ -52,7 +52,7 @@ export default function Drawer({ user, bracelets, isOpen, onClose, currentPage, 
       <div className="drawer-user">
         <div className="d-ava">{initial}</div>
         <div>
-          <div className="d-name">{prenom}</div>
+          <div className="d-name" spellCheck={false}>{prenom}</div>
           <div className="d-email">{user.email}</div>
         </div>
       </div>

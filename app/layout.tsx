@@ -28,6 +28,9 @@ export const metadata: Metadata = {
   title: 'Pulsmee · Mon espace',
   description: 'Gérez votre bracelet médical Pulsmee — fiche médicale, contacts d\'urgence, programmation NFC.',
   icons: { icon: '/favicon.svg' },
+  other: {
+    'format-detection': 'telephone=no, email=no, address=no',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

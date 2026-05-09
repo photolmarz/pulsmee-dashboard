@@ -192,7 +192,7 @@ body {
 }
 
 .d-name { font-size: 14px; font-weight: 700; color: var(--ink); }
-.d-email { font-size: 11px; color: var(--ink-light); margin-top: 2px; }
+.d-email { font-size: 11px; color: var(--ink-light); margin-top: 2px; pointer-events: none; -webkit-user-select: none; user-select: none; }
 
 .drawer-bracelet {
   margin: 14px 24px 0;
