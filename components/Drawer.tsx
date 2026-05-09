@@ -11,7 +11,7 @@ type DrawerProps = {
   bracelets: Bracelet[]
   isOpen: boolean
   onClose: () => void
-  currentPage: 'dashboard' | 'fiche'
+  currentPage: 'dashboard' | 'fiche' | 'scans'
   currentBraceletId?: string
   onToast?: (msg: string) => void
 }
@@ -65,6 +65,13 @@ export default function Drawer({ user, bracelets, isOpen, onClose, currentPage, 
           onClick={() => nav('/dashboard')}
         >
           <span className="d-lbl">Dashboard</span>
+        </button>
+
+        <button
+          className={`d-item${currentPage === 'scans' ? ' is-active' : ''}`}
+          onClick={() => nav('/dashboard/scans')}
+        >
+          <span className="d-lbl">📡 Historique des scans</span>
         </button>
 
         {bracelets.length > 0 && (

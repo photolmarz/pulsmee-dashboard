@@ -278,6 +278,7 @@ export default function DashboardPage() {
             <div className="card" style={{ marginTop: 20 }}>
               <div className="card-head">
                 <div className="card-title">⚡ Activité récente</div>
+                <button className="card-action" onClick={() => router.push('/dashboard/scans')}>Voir tout →</button>
               </div>
               <div className="card-body">
                 {scans.slice(0, 8).map(scan => {
