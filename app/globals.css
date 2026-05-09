@@ -376,6 +376,15 @@ a.d-item { text-decoration: none; color: var(--ink); }
   overflow: hidden;
 }
 
+.stat-card-btn {
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+  width: 100%;
+}
+.stat-card-btn:hover { background: var(--stone); }
+.stat-card-active { background: var(--stone); }
+
 .stat-card::before {
   content: '';
   position: absolute;
@@ -1958,8 +1967,9 @@ input[type="date"].fi-input {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 7px 16px;
+  padding: 10px 18px;
 }
+.bc-scan-row-border { border-top: 1px solid var(--stone); }
 .bc-scan-row:hover { background: var(--stone); }
 .bc-scan-dot {
   width: 6px;
@@ -1973,9 +1983,10 @@ input[type="date"].fi-input {
   font-size: 12px;
   color: var(--ink-mid);
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 2px;
 }
+.bc-scan-bracelet { color: var(--stone-dark); font-weight: 500; }
 .bc-scan-date { font-weight: 600; }
 .bc-scan-loc { text-decoration: none; font-size: 13px; }
 .bc-scan-rel { font-size: 11px; color: var(--stone-dark); white-space: nowrap; }
