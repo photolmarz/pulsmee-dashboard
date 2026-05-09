@@ -18,6 +18,7 @@ export default function DashboardPage() {
   const [toast, setToast] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [showActivation, setShowActivation] = useState(false)
+  const [expandedScans, setExpandedScans] = useState<string | null>(null)
   const [activationCode, setActivationCode] = useState('')
   const [nomProfil, setNomProfil] = useState('')
   const [activating, setActivating] = useState(false)
@@ -236,15 +237,46 @@ export default function DashboardPage() {
                         </div>
                       </div>
                       <div className="bc-stats">
-                        <div className="bc-stat">
+                        <button
+                          className="bc-stat bc-stat-btn"
+                          onClick={() => setExpandedScans(expandedScans === br.bracelet_id ? null : br.bracelet_id)}
+                        >
                           <span className="bc-stat-val">{brScans.length}</span>
-                          <span className="bc-stat-lbl">scans au total</span>
-                        </div>
+                          <span className="bc-stat-lbl">scans {expandedScans === br.bracelet_id ? '▲' : '▼'}</span>
+                        </button>
                         <div className="bc-stat">
                           <span className="bc-stat-val">{lastScan ? formatRelativeTime(lastScan.scanned_at) : '—'}</span>
                           <span className="bc-stat-lbl">dernier scan</span>
                         </div>
                       </div>
+
+                      {expandedScans === br.bracelet_id && (
+                        <div className="bc-scans-list">
+                          {brScans.length === 0 ? (
+                            <div className="bc-scans-empty">Aucun scan enregistré</div>
+                          ) : brScans.map(scan => {
+                            const mapsUrl = (scan.latitude != null && scan.longitude != null)
+                              ? `https://www.google.com/maps?q=${scan.latitude},${scan.longitude}`
+                              : null
+                            const scanDate = new Date(scan.scanned_at).toLocaleString('fr-FR', {
+                              day: '2-digit', month: '2-digit', year: 'numeric',
+                              hour: '2-digit', minute: '2-digit',
+                            })
+                            return (
+                              <div key={scan.id} className="bc-scan-row">
+                                <div className="bc-scan-dot" />
+                                <div className="bc-scan-info">
+                                  <span className="bc-scan-date">{scanDate}</span>
+                                  {mapsUrl && (
+                                    <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="bc-scan-loc">📍</a>
+                                  )}
+                                </div>
+                                <span className="bc-scan-rel">{formatRelativeTime(scan.scanned_at)}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
                       <div className="bc-actions">
                         <button className="bc-btn primary" onClick={() => router.push(`/fiche/${br.bracelet_id}`)}>
                           📋 Modifier la fiche
@@ -278,7 +310,6 @@ export default function DashboardPage() {
             <div className="card" style={{ marginTop: 20 }}>
               <div className="card-head">
                 <div className="card-title">⚡ Activité récente</div>
-                <button className="card-action" onClick={() => router.push('/dashboard/scans')}>Voir tout →</button>
               </div>
               <div className="card-body">
                 {scans.slice(0, 8).map(scan => {
